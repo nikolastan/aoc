@@ -66,22 +66,19 @@ public class Solution
 
         var result = 0;
         var word = "MAS";
-        var directions = Enum.GetValues(typeof(Direction)).Cast<Direction>().ToList();
 
         for (int i = 0; i < grid.Length; i++)
         {
             for (int j = 0; j < grid[i].Length; j++)
             {
-                var foundWord = directions
-                    .Any(direction =>
-                        IsWordInDirection(grid, i, j, word, direction)
-                        || IsWordInDirection(grid, i, j, word.Reverse().ToString(), direction));
-                if (foundWord)
-                    foundWord = directions.Any(direction =>
-                        IsWordInDirection(grid, i + 2, j, word, direction)
-                        || IsWordInDirection(grid, i + 2, j, word, direction));
+                var foundWord = IsWordInDirection(grid, i, j, word, Direction.Southeast) 
+                    || IsWordInDirection(grid, i, j, new string(word.Reverse().ToArray()), Direction.Southeast);
 
                 if (foundWord)
+					foundWord = IsWordInDirection(grid, i, j + 2, word, Direction.Southwest)
+					|| IsWordInDirection(grid, i, j + 2, new string(word.Reverse().ToArray()), Direction.Southwest);
+
+				if (foundWord)
                     result++;
             }
         }
