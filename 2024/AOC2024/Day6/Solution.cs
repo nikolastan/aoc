@@ -39,9 +39,23 @@ public partial class Solution
     {
         var result = SolvePart2("Inputs/input.txt");
         Console.WriteLine(result);
-    }
+	}
 
-    int SolvePart1(string inputPath)
+	[Test]
+	public void Part2v2_Example2()
+	{
+		var result = SolvePart2V2("Inputs/example2.txt");
+		Assert.That(result, Is.EqualTo(19));
+	}
+
+	[Test]
+	public void Part2v2_Input()
+	{
+		var result = SolvePart2V2("Inputs/input.txt");
+		Console.WriteLine(result);
+	}
+
+	int SolvePart1(string inputPath)
     {
         var grid = ReadGrid(inputPath, out (int, int) guardPos);
         var result = 0;
@@ -72,8 +86,43 @@ public partial class Solution
         return result;
     }
 
+    List<(int, int)> GetAllTraversedTiles(Tile[][] grid, (int, int) startPos, Direction startDirection)
+    {
+        var guardPos = startPos;
+        var currentDirection = startDirection;
+
+        var result = new List<(int, int)>();
+
+        while (IsValidTile(grid, guardPos))
+        {
+            if (!grid[guardPos.Item1][guardPos.Item2].Traversed)
+            {
+                grid[guardPos.Item1][guardPos.Item2].Traversed = true;
+                result.Add(guardPos);
+            }
+
+            var inFrontOfGuard = CalculateNextMove(guardPos, currentDirection);
+
+            if (IsValidTile(grid, inFrontOfGuard))
+            {
+                while (grid[inFrontOfGuard.Item1][inFrontOfGuard.Item2].Char is '#')
+                {
+                    currentDirection = CalculateNextDirection(currentDirection);
+                    inFrontOfGuard = CalculateNextMove(guardPos, currentDirection);
+                }
+
+                guardPos = CalculateNextMove(guardPos, currentDirection);
+            }
+            else
+                guardPos = inFrontOfGuard;
+        }
+
+        return result;
+    }
+
     int SolvePart2(string inputPath)
     {
+        //Bugged? But can't find edge case...
         var grid = ReadGrid(inputPath, out (int, int) guardPos);
         var obstacles = new List<(int, int)>();
 
@@ -130,6 +179,25 @@ public partial class Solution
 
         return obstacles.Count;
     }
+
+    int SolvePart2V2(string inputPath)
+    {
+        var grid = ReadGrid(inputPath, out (int, int) guardPos);
+        var obstacles = new List<(int, int)>();
+
+        var startPos = guardPos;
+        var startDirection = Direction.North;
+
+        var currentDirection = startDirection;
+
+        var traversedTiles = GetAllTraversedTiles(grid, startPos, startDirection);
+
+        var result = traversedTiles
+            .Where(tilePos => IsLoop(ArrayExtensions.DeepCopy(grid), startPos, tilePos, startDirection))
+            .Count();
+
+        return result;
+	}
 
     static Tile[][] ReadGrid(string inputPath, out (int, int) start)
     {
