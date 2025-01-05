@@ -1,4 +1,5 @@
 ﻿using NUnit.Framework;
+using System;
 
 namespace Day9;
 public partial class Solution
@@ -21,7 +22,7 @@ public partial class Solution
 	public void Part2_Example()
 	{
 		var result = SolvePart2("Inputs/example.txt");
-		Assert.That(result, Is.EqualTo(0));
+		Assert.That(result, Is.EqualTo(2858));
 	}
 
 	[Test]
@@ -33,14 +34,7 @@ public partial class Solution
 
 	long SolvePart1(string inputPath)
 	{
-		var diskMap = File.ReadLines(inputPath).First()
-			.Select((x, i) => new Fragment(
-				type: (Type)(i % 2),
-				id: i % 2 is 0 ? i / 2 : null,
-				size: x - '0')
-			)
-			.Where(x => x.Size is not 0)
-			.ToList();
+		var diskMap = ReadDiskMap(inputPath);
 
 		while (diskMap.Any(x => x.Type is Type.FreeSpace))
 		{
@@ -57,13 +51,13 @@ public partial class Solution
 
 			if (firstAvailableSpace.Size <= lastFragment.Size)
 			{
+				lastFragment.Size -= firstAvailableSpace.Size;
 				diskMap =
 				[
 					.. diskMap[..index],
 					new Fragment(Type.File, firstAvailableSpace.Size, lastFragment.ID),
 					.. diskMap[(index + 1)..],
 				];
-				lastFragment.Size -= firstAvailableSpace.Size;
 			}
 			else
 			{
@@ -78,15 +72,64 @@ public partial class Solution
 			}
 		}
 
-		return diskMap
-			.SelectMany(x => Enumerable.Range(0, x.Size).Select(_ => x.ID!.Value))
-			.Select((x, i) => (long)x * i)
-			.Sum();
+		return CalculateChecksum(diskMap);
 	}
 
-	int SolvePart2(string inputPath)
+	long SolvePart2(string inputPath)
 	{
-		return 0;
+		var diskMap = ReadDiskMap(inputPath);
+
+		while (diskMap.Any(x => x.Type is Type.File && !x.Checked))
+		{
+			var lastFragment = diskMap.Last(x => x.Type is Type.File && !x.Checked);
+			var indexOfLastFragment = diskMap.IndexOf(lastFragment);
+
+			var firstAvailableSpace = diskMap[..indexOfLastFragment]
+				.FirstOrDefault(x => x.Type is Type.FreeSpace && x.Size >= lastFragment.Size);
+			
+			if(firstAvailableSpace is not null)
+			{
+				var index = diskMap.IndexOf(firstAvailableSpace);
+
+				firstAvailableSpace.Size -= lastFragment.Size;
+				diskMap =
+				[
+					.. diskMap[..index],
+					new Fragment(Type.File, lastFragment.Size, lastFragment.ID) { Checked = true },
+					.. diskMap[index..],
+				];
+
+				lastFragment.Type = Type.FreeSpace;
+				lastFragment.ID = null;
+
+				if (firstAvailableSpace.Size is 0)
+					diskMap.Remove(firstAvailableSpace);
+			}
+
+			lastFragment.Checked = true;
+		}
+
+		return CalculateChecksum(diskMap);
+	}
+
+	static List<Fragment> ReadDiskMap(string inputPath)
+	{
+		return File.ReadLines(inputPath).First()
+			.Select((x, i) => new Fragment(
+				type: (Type)(i % 2),
+				id: i % 2 is 0 ? i / 2 : null,
+				size: x - '0')
+			)
+			.Where(x => x.Size is not 0)
+			.ToList();
+	}
+
+	static long CalculateChecksum(List<Fragment> diskMap)
+	{
+		return diskMap
+			.SelectMany(x => Enumerable.Range(0, x.Size).Select(_ => x.ID ?? 0))
+			.Select((x, i) => (long)x * i)
+			.Sum();
 	}
 
 	class Fragment(Type type, int size, int? id = null)
@@ -94,6 +137,8 @@ public partial class Solution
 		public Type Type = type;
 		public int? ID = id;
 		public int Size = size;
+
+		public bool Checked = false;
 	}
 
 	enum Type
