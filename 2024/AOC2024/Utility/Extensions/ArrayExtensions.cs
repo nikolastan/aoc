@@ -13,4 +13,12 @@ public static class ArrayExtensions
 
         return copy;
     }
+
+    public static bool IsValidTile<T>(T[][] grid, int x, int y)
+    {
+        return x >= 0
+            && x < grid.Length
+            && y >= 0
+            && y < grid[x].Length;
+    }
 }
