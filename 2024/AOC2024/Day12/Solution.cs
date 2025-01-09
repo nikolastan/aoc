@@ -201,6 +201,7 @@ public class Solution
 
     static int GetNumOfSides(Crop[,] map, List<(int X, int Y)> edgePoints)
     {
+        //Debug this
         var sides = 0;
 
         foreach(var edge in edgePoints)
