@@ -39,7 +39,7 @@ public class Solution
             .Select(x => x.Select(c => new Crop(c)).ToArray())
             .ToArray();
 
-        var gardenPlots = GetGardenPlots(gardenMap);
+		var gardenPlots = GetGardenPlots(gardenMap);
 
         return gardenPlots
             .Select(plot => CalculatePerimeter(gardenMap, plot) * plot.Count)
@@ -52,12 +52,40 @@ public class Solution
             .Select(x => x.Select(c => new Crop(c)).ToArray())
             .ToArray();
 
-        var gardenPlots = GetGardenPlots(gardenMap);
+        var expandedMap = ExpandMap(gardenMap);
+
+        var gardenPlots = CorrectCoordinatesOfPlots(GetGardenPlots(gardenMap));
 
         return gardenPlots
-            .Select(plot => CalculateNumOfSides(gardenMap, plot) * plot.Count)
+            .Select(plot => CalculateNumOfSides(expandedMap, plot) * plot.Count)
             .Sum();
     }
+
+    Crop[,] ExpandMap(Crop[][] map)
+    {
+		var expandedMap = new Crop[map.Length + 2, map[0].Length + 2];
+
+		for (int i = 0; i < expandedMap.GetLength(0); i++)
+		{
+			for (int j = 0; j < expandedMap.GetLength(1); j++)
+			{
+				if (i is 0 || i == expandedMap.GetLength(0) - 1
+					| j is 0 || j == expandedMap.GetLength(1) - 1)
+					expandedMap[i, j] = new Crop('0') { Traversed = true };
+				else
+					expandedMap[i, j] = map[i - 1][j - 1];
+			}
+		}
+
+        return expandedMap;
+	}
+
+    IEnumerable<List<(int X, int Y)>> CorrectCoordinatesOfPlots(IEnumerable<List<(int X, int Y)>> plots)
+	{
+        return plots
+            .Select(plot => plot.Select(tile => (++tile.X, ++tile.Y)).Cast<(int X, int Y)>().ToList())
+			.ToList();
+	}
 
     static IEnumerable<List<(int X, int Y)>> GetGardenPlots(Crop[][] gardenMap)
     {
@@ -135,35 +163,62 @@ public class Solution
         return result;
     }
 
-    static int CalculateNumOfSides(Crop[][] map, List<(int X, int Y)> area)
+    static int CalculateNumOfSides(Crop[,] map, List<(int X, int Y)> area)
     {
-        var edgePoints = area.Where(tile => IsOnEdge(map, tile.X, tile.Y)).ToList();
+        var edgePoints = area.SelectMany(tile => GetOuterEdge(map, tile.X, tile.Y)).ToList();
 
-        var sides = GetNumOfSides(map, edgePoints);
+        var sides = GetNumOfSides(map, edgePoints) / 2;
 
         return sides;
     }
 
-    static bool IsOnEdge(Crop[][] map, int x, int y)
+    static IEnumerable<(int X, int Y)> GetOuterEdge(Crop[,] map, int x, int y)
     {
-        if (!ArrayExtensions.IsValidTile(map, x - 1, y) || map[x - 1][y].Plant != map[x][y].Plant)
-            return true;
+        if (!ArrayExtensions.IsValidTile(map, x - 1, y) || map[x - 1, y].Plant != map[x, y].Plant)
+            yield return (x - 1, y);
 
-        if (!ArrayExtensions.IsValidTile(map, x, y - 1) || map[x][y - 1].Plant != map[x][y].Plant)
-            return true;
+        if (!ArrayExtensions.IsValidTile(map, x, y - 1) || map[x,y - 1].Plant != map[x,y].Plant)
+			yield return (x, y - 1);
 
-        if (!ArrayExtensions.IsValidTile(map, x + 1, y) || map[x + 1][y].Plant != map[x][y].Plant)
-            return true;
+		if (!ArrayExtensions.IsValidTile(map, x + 1, y) || map[x + 1,y].Plant != map[x,y].Plant)
+			yield return (x + 1, y);
 
-        if (!ArrayExtensions.IsValidTile(map, x, y + 1) || map[x][y + 1].Plant != map[x][y].Plant)
-            return true;
+		if (!ArrayExtensions.IsValidTile(map, x, y + 1) || map[x,y + 1].Plant != map[x,y].Plant)
+			yield return (x, y + 1);
 
-        return false;
-    }
+		if (!ArrayExtensions.IsValidTile(map, x - 1, y - 1) || map[x - 1, y - 1].Plant != map[x, y].Plant)
+			yield return (x - 1, y - 1);
 
-    static int GetNumOfSides(Crop[][] map, List<(int X, int Y)> edgePoints)
+		if (!ArrayExtensions.IsValidTile(map, x + 1, y - 1) || map[x + 1, y - 1].Plant != map[x, y].Plant)
+			yield return (x + 1, y - 1);
+
+		if (!ArrayExtensions.IsValidTile(map, x + 1, y + 1) || map[x + 1, y + 1].Plant != map[x, y].Plant)
+			yield return (x + 1, y + 1);
+
+		if (!ArrayExtensions.IsValidTile(map, x - 1, y + 1) || map[x - 1, y + 1].Plant != map[x, y].Plant)
+			yield return (x - 1, y + 1);
+	}
+
+    static int GetNumOfSides(Crop[,] map, List<(int X, int Y)> edgePoints)
     {
+        var sides = 0;
 
+        foreach(var edge in edgePoints)
+        {
+            var neighboursOnEdge = GetNeighboursFrom(map, edge.X, edge.Y, edgePoints).ToList();
+
+            if (neighboursOnEdge.Count is 2
+                && !neighboursOnEdge.Select(x => x.Direction).Contains(neighboursOnEdge.Select(x => x.Direction.GetOpposite()).First()))
+                sides++;
+
+            if (neighboursOnEdge.Count is 1)
+                sides += 2;
+
+            if (neighboursOnEdge.Count is 0)
+                sides += 4;
+        }
+
+        return sides;
     }
 
     static IEnumerable<Direction> GetSideDirections(Crop[][] map, int x, int y)
@@ -180,6 +235,18 @@ public class Solution
         if (ArrayExtensions.IsValidTile(map, x, y + 1) && map[x][y + 1].Plant == map[x][y].Plant)
             yield return Direction.East;
     }
+
+    static IEnumerable<(int X, int Y, Direction Direction)> GetNeighboursFrom(Crop[,] map, int x, int y, List<(int X, int Y)> poolOfTiles)
+    {
+        if (ArrayExtensions.IsValidTile(map, x - 1, y) && poolOfTiles.Contains((x - 1, y)))
+            yield return (x - 1, y, Direction.North);
+		if (ArrayExtensions.IsValidTile(map, x, y - 1) && poolOfTiles.Contains((x, y - 1)))
+			yield return (x, y - 1, Direction.West);
+		if (ArrayExtensions.IsValidTile(map, x + 1, y) && poolOfTiles.Contains((x + 1, y)))
+			yield return (x + 1, y, Direction.South);
+		if (ArrayExtensions.IsValidTile(map, x, y + 1) && poolOfTiles.Contains((x, y + 1)))
+			yield return (x, y + 1, Direction.East);
+	}
 
     struct Crop(char plant)
     {
