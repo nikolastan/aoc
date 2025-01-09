@@ -13,6 +13,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Utility\Utility.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Update="Inputs\example.txt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
