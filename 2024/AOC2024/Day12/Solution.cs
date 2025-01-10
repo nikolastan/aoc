@@ -51,37 +51,30 @@ public class Solution
             .Select(x => x.Select(c => new Crop(c)).ToArray())
             .ToArray();
 
+        gardenMap = ExpandMap(gardenMap, 3);
+
         var gardenPlots = GetGardenPlots(gardenMap);
 
         return gardenPlots
-            .Select(plot => CalculateNumOfSides(gardenMap, plot) * plot.Count)
+            .Select(plot => CalculateNumOfSides(gardenMap, plot) * plot.Count / 9)
             .Sum();
     }
 
-    Crop[,] ExpandMap(Crop[][] map)
+    static Crop[][] ExpandMap(Crop[][] map, int times)
     {
-        var expandedMap = new Crop[map.Length + 2, map[0].Length + 2];
+        var expandedMap = new Crop[map.Length * times][];
 
-        for (int i = 0; i < expandedMap.GetLength(0); i++)
+        for (int i = 0; i < expandedMap.Length; i++)
         {
-            for (int j = 0; j < expandedMap.GetLength(1); j++)
+            expandedMap[i] = new Crop[map[i / times].Length * times];
+
+            for (int j = 0; j < expandedMap[i].Length; j++)
             {
-                if (i is 0 || i == expandedMap.GetLength(0) - 1
-                    | j is 0 || j == expandedMap.GetLength(1) - 1)
-                    expandedMap[i, j] = new Crop('0') { Traversed = true };
-                else
-                    expandedMap[i, j] = map[i - 1][j - 1];
+                expandedMap[i][j] = map[i / times][j / times];
             }
         }
 
         return expandedMap;
-    }
-
-    IEnumerable<List<(int X, int Y)>> CorrectCoordinatesOfPlots(IEnumerable<List<(int X, int Y)>> plots)
-    {
-        return plots
-            .Select(plot => plot.Select(tile => (++tile.X, ++tile.Y)).Cast<(int X, int Y)>().ToList())
-            .ToList();
     }
 
     static IEnumerable<List<(int X, int Y)>> GetGardenPlots(Crop[][] gardenMap)
@@ -207,55 +200,51 @@ public class Solution
 
         foreach (var (X, Y) in edgePoints)
         {
-            sides += CountInsideCorners(map, edgePoints, area, X, Y);
+            sides += CountInsideCorners(area, X, Y);
 
-            sides += CountOutsideCorners(map, edgePoints, area, X, Y);
+            sides += CountOutsideCorners(area, X, Y);
         }
 
         return sides;
     }
 
-    static int CountInsideCorners(Crop[][] map, List<(int X, int Y)> edgePoints, List<(int X, int Y)> area, int X, int Y)
+    static int CountInsideCorners(List<(int X, int Y)> area, int X, int Y)
     {
         var corners = 0;
 
-        if (edgePoints.Contains((X - 1, Y)) && edgePoints.Contains((X, Y - 1)) && !area.Contains((X - 1, Y - 1)))
+        if (area.Contains((X - 1, Y)) && area.Contains((X, Y - 1)) && !area.Contains((X - 1, Y - 1)))
             corners++;
 
-        if (edgePoints.Contains((X, Y - 1)) && edgePoints.Contains((X + 1, Y)) && !area.Contains((X + 1, Y - 1)))
+        if (area.Contains((X, Y - 1)) && area.Contains((X + 1, Y)) && !area.Contains((X + 1, Y - 1)))
             corners++;
 
-        if (edgePoints.Contains((X + 1, Y)) && edgePoints.Contains((X, Y + 1)) && !area.Contains((X + 1, Y + 1)))
+        if (area.Contains((X + 1, Y)) && area.Contains((X, Y + 1)) && !area.Contains((X + 1, Y + 1)))
             corners++;
 
-        if (edgePoints.Contains((X, Y + 1)) && edgePoints.Contains((X - 1, Y)) && !area.Contains((X - 1, Y + 1)))
+        if (area.Contains((X, Y + 1)) && area.Contains((X - 1, Y)) && !area.Contains((X - 1, Y + 1)))
             corners++;
 
         return corners;
 
     }
 
-    static int CountOutsideCorners(Crop[][] map, List<(int X, int Y)> edgePoints, List<(int X, int Y)> area, int X, int Y)
+    static int CountOutsideCorners(List<(int X, int Y)> area, int X, int Y)
     {
         var sides = 0;
 
-        if (ArrayExtensions.IsValidTile(map, X - 1, Y) && ArrayExtensions.IsValidTile(map, X, Y - 1) &&
-            ((!area.Contains((X - 1, Y)) && !area.Contains((X, Y - 1))) || (edgePoints.Contains((X - 1, Y)) && edgePoints.Contains((X, Y - 1)) && !area.Contains((X + 1, Y + 1)))))
+        if (area.Contains((X - 1, Y)) && area.Contains((X, Y - 1)) && !area.Contains((X + 1, Y)) && !area.Contains((X, Y + 1)))
             sides++;
 
-        if (ArrayExtensions.IsValidTile(map, X, Y - 1) && ArrayExtensions.IsValidTile(map, X + 1, Y) &&
-            ((!area.Contains((X, Y - 1)) && !area.Contains((X + 1, Y))) || (edgePoints.Contains((X, Y - 1)) && edgePoints.Contains((X + 1, Y)) && !area.Contains((X - 1, Y + 1)))))
-            sides++;
+		if (area.Contains((X, Y - 1)) && area.Contains((X + 1, Y)) && !area.Contains((X - 1, Y)) && !area.Contains((X, Y + 1)))
+			sides++;
 
-        if (ArrayExtensions.IsValidTile(map, X + 1, Y) && ArrayExtensions.IsValidTile(map, X, Y + 1) &&
-            ((!area.Contains((X + 1, Y)) && !area.Contains((X, Y + 1))) || (edgePoints.Contains((X + 1, Y)) && edgePoints.Contains((X, Y + 1)) && !area.Contains((X - 1, Y - 1)))))
-            sides++;
+		if (area.Contains((X + 1, Y)) && area.Contains((X, Y + 1)) && !area.Contains((X - 1, Y)) && !area.Contains((X, Y - 1)))
+			sides++;
 
-        if (ArrayExtensions.IsValidTile(map, X, Y + 1) && ArrayExtensions.IsValidTile(map, X - 1, Y) &&
-            ((!area.Contains((X, Y + 1)) && !area.Contains((X - 1, Y))) || (edgePoints.Contains((X, Y + 1)) && edgePoints.Contains((X - 1, Y)) && !area.Contains((X + 1, Y - 1)))))
-            sides++;
+		if (area.Contains((X, Y + 1)) && area.Contains((X - 1, Y)) && !area.Contains((X, Y - 1)) && !area.Contains((X + 1, Y)))
+			sides++;
 
-        return sides;
+		return sides;
     }
 
     struct Crop(char plant)
