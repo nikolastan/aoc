@@ -132,11 +132,11 @@ public partial class Solution
 
             var att = direction.GetAttribute<VectorAttribute>();
 
-            Move(ref coordinates, robot, (att.Di, att.Dj));
+            Move(coordinates, robot, (att.Di, att.Dj));
         }
     }
 
-    static void Move(ref List<Object> allCoordinates, Object robot, (int dx, int dy) directionVector)
+    static void Move(List<Object> allCoordinates, Object robot, (int dx, int dy) directionVector)
     {
         var inFrontOfRobot = allCoordinates.SingleOrDefault(tile => AreIntersected(tile, robot, directionVector));
 
@@ -213,6 +213,7 @@ public partial class Solution
             || (object1.Start.Y <= object2.End.Y + directionVector.dy
             && object1.End.Y >= object2.End.Y + directionVector.dy));
     }
+
     enum ObjectType
     {
         Wall = 1,
