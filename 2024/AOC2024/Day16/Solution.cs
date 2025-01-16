@@ -58,34 +58,34 @@ public class Solution
             })
             .ToArray();
 
-        var memo = new Dictionary<Point, int>();
+        var memo = new Dictionary<(Point, Direction), int>();
 
         var startMove = new Move(start);
 
         PerformMovement(map, startMove, 0, memo);
 
-        return memo[end]; 
+        return memo[(end, 0)]; 
     }
 
-    static void PerformMovement(char[][] map, Move lastMove, int currentScore, Dictionary<Point, int> memo)
+    static void PerformMovement(char[][] map, Move lastMove, int currentScore, Dictionary<(Point, Direction), int> memo)
     {
-        if (memo.TryGetValue(lastMove.Tile, out var score) && score < currentScore)
-            return;
-        else
-            memo[lastMove.Tile] = currentScore;
-
         var availableMoves = GetAvailableMoves(map, lastMove.Tile)
             .Where(move => move.Tile != lastMove.Tile);
+
+        if (!availableMoves.Any())
+        {
+            return;
+        }
 
         var finalMove = availableMoves.SingleOrDefault(x => map[x.Tile.X][x.Tile.Y] is 'E');
         if (finalMove is not null)
         {
-            var totalScore = currentScore += finalMove.Direction != lastMove.Direction
-                ? 1001
-                : 1;
+            var totalScore = currentScore += finalMove.Direction == lastMove.Direction
+                ? 1
+                : 1001;
 
-            if(!memo.TryGetValue(finalMove.Tile, out score) || score > totalScore)
-                memo[finalMove.Tile] = totalScore;
+            if(!memo.TryGetValue((finalMove.Tile,0), out var score) || score > totalScore)
+                memo[(finalMove.Tile, 0)] = totalScore;
 
             return;
         }
@@ -95,6 +95,12 @@ public class Solution
             var newScore = move.Direction == lastMove.Direction
                 ? currentScore + 1
                 : currentScore + 1001;
+
+            if (memo.TryGetValue((move.Tile, move.Direction!.Value), out var score) && score < newScore)
+                return;
+            else
+                memo[(move.Tile, move.Direction!.Value)] = newScore;
+
 
             PerformMovement(map, move, newScore, memo);
 		}
