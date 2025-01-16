@@ -50,18 +50,21 @@ public class Solution
 
         var memo = new Dictionary<Point, int>();
 
-        return PerformMovement(map, new Move(start), [start], 0, memo);
+        var startMove = new Move(start);
+        return PerformMovement(map, [startMove], 0, memo) - 1;
     }
 
-    static int PerformMovement(char[][] map, Move lastMove, List<Point> traversedTiles, int currentScore, Dictionary<Point, int> memo)
+    static int PerformMovement(char[][] map, List<Move> performedMoves, int currentScore, Dictionary<Point, int> memo)
     {
+        var lastMove = performedMoves.Last();
+
         if (memo.TryGetValue(lastMove.Tile, out var score) && score < currentScore)
         {
             return score;
         }
 
         var availableMoves = GetAvailableMoves(map, lastMove.Tile)
-            .Where(x => !traversedTiles.Contains(x.Tile));
+            .Where(x => !performedMoves.Select(x => x.Tile).Contains(x.Tile));
 
         if (availableMoves.Count() is 0)
             return int.MaxValue;
@@ -70,20 +73,20 @@ public class Solution
 
         if (finalMove is not null)
         {
-            var totalScore = currentScore += lastMove.Direction is not null && finalMove.Direction != lastMove.Direction
+            var totalScore = currentScore += finalMove.Direction != lastMove.Direction
                 ? 1001
                 : 1;
 
-            if (memo.TryGetValue(lastMove.Tile, out score) && totalScore < score)
+            if (!memo.TryGetValue(lastMove.Tile, out score) || totalScore < score)
                 memo[finalMove.Tile] = totalScore;
 
             return totalScore;
         }
 
         return availableMoves
-            .Select(x => lastMove.Direction is null || x.Direction == lastMove.Direction
-                ? PerformMovement(map, x, [.. traversedTiles, x.Tile], ++currentScore, memo)
-                : PerformMovement(map, x, [.. traversedTiles, x.Tile], currentScore + 1001, memo))
+            .Select(x => x.Direction == lastMove.Direction
+                ? PerformMovement(map, [.. performedMoves, x], ++currentScore, memo)
+                : PerformMovement(map, [.. performedMoves, x], currentScore + 1001, memo))
             .Min();
     }
 
