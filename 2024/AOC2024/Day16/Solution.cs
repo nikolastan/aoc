@@ -11,9 +11,16 @@ public class Solution
     {
         var result = SolvePart1("Inputs/example.txt");
         Assert.That(result, Is.EqualTo(7036));
-    }
+	}
 
-    [Test]
+	[Test]
+	public void Part1_Example2()
+	{
+		var result = SolvePart1("Inputs/example2.txt");
+		Assert.That(result, Is.EqualTo(11048));
+	}
+
+	[Test]
     public void Part1_Input()
     {
         var result = SolvePart1("Inputs/input.txt");
@@ -37,12 +44,15 @@ public class Solution
     int SolvePart1(string inputPath)
     {
         Point start = new(0, 0);
+        Point end = new(0, 0);
 
         var map = File.ReadAllLines(inputPath)
             .Select((x, i) =>
             {
                 if (x.Contains('S'))
                     start = new Point(i, x.IndexOf('S'));
+                if(x.Contains('E'))
+                    end = new Point(i, x.IndexOf('E'));
 
                 return x.ToArray();
             })
@@ -51,43 +61,44 @@ public class Solution
         var memo = new Dictionary<Point, int>();
 
         var startMove = new Move(start);
-        return PerformMovement(map, [startMove], 0, memo) - 1;
+
+        PerformMovement(map, startMove, 0, memo);
+
+        return memo[end]; 
     }
 
-    static int PerformMovement(char[][] map, List<Move> performedMoves, int currentScore, Dictionary<Point, int> memo)
+    static void PerformMovement(char[][] map, Move lastMove, int currentScore, Dictionary<Point, int> memo)
     {
-        var lastMove = performedMoves.Last();
-
         if (memo.TryGetValue(lastMove.Tile, out var score) && score < currentScore)
-        {
-            return score;
-        }
+            return;
+        else
+            memo[lastMove.Tile] = currentScore;
 
         var availableMoves = GetAvailableMoves(map, lastMove.Tile)
-            .Where(x => !performedMoves.Select(x => x.Tile).Contains(x.Tile));
-
-        if (availableMoves.Count() is 0)
-            return int.MaxValue;
+            .Where(move => move.Tile != lastMove.Tile);
 
         var finalMove = availableMoves.SingleOrDefault(x => map[x.Tile.X][x.Tile.Y] is 'E');
-
         if (finalMove is not null)
         {
             var totalScore = currentScore += finalMove.Direction != lastMove.Direction
                 ? 1001
                 : 1;
 
-            if (!memo.TryGetValue(lastMove.Tile, out score) || totalScore < score)
+            if(!memo.TryGetValue(finalMove.Tile, out score) || score > totalScore)
                 memo[finalMove.Tile] = totalScore;
 
-            return totalScore;
+            return;
         }
 
-        return availableMoves
-            .Select(x => x.Direction == lastMove.Direction
-                ? PerformMovement(map, [.. performedMoves, x], ++currentScore, memo)
-                : PerformMovement(map, [.. performedMoves, x], currentScore + 1001, memo))
-            .Min();
+        foreach(var move in availableMoves)
+        {
+            var newScore = move.Direction == lastMove.Direction
+                ? currentScore + 1
+                : currentScore + 1001;
+
+            PerformMovement(map, move, newScore, memo);
+		}
+        return;
     }
 
     int SolvePart2(string inputPath)
