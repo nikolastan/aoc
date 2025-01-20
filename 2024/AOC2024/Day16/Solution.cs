@@ -91,7 +91,7 @@ public class Solution
             return;
         else
         {
-            if (CheckInAllDirectionsForBetterScore(ref memo, lastMove.Tile, currentScore))
+            if (BetterScoreInAnyDirection(ref memo, lastMove.Tile, currentScore))
                 return;
 
             memo[(lastMove.Tile, lastMove.Direction)] = currentScore;
@@ -110,7 +110,7 @@ public class Solution
         return 0;
     }
 
-    static bool CheckInAllDirectionsForBetterScore(ref Dictionary<(Point, Direction?), int> memo, Point from, int currentScore)
+    static bool BetterScoreInAnyDirection(ref Dictionary<(Point, Direction?), int> memo, Point from, int currentScore)
     {
         if (memo.TryGetValue((from, Direction.North), out var minScore) && minScore <= currentScore - 1000)
             return true;
