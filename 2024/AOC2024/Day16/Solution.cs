@@ -31,7 +31,14 @@ public class Solution
     public void Part2_Example()
     {
         var result = SolvePart2("Inputs/example.txt");
-        Assert.That(result, Is.EqualTo(0));
+        Assert.That(result, Is.EqualTo(45));
+    }
+
+    [Test]
+    public void Part2_Example2()
+    {
+        var result = SolvePart2("Inputs/example2.txt");
+        Assert.That(result, Is.EqualTo(64));
     }
 
     [Test]
@@ -58,20 +65,48 @@ public class Solution
             })
             .ToArray();
 
-        var memo = new Dictionary<(Point, Direction?), int>();
-
+        var memo = new Dictionary<(Point, Direction?), (int Score, List<Point>? Traversed)>();
+        var traversed = new List<Point>();
         var startMove = new Move(start);
 
-        PerformMovement(map, startMove, 0, ref memo);
+        PerformMovement(map, startMove, end, 0, traversed, memo);
 
-        return memo[(end, null)];
+        return memo[(end, null)].Score;
     }
 
-    static void PerformMovement(char[][] map, Move lastMove, int currentScore, ref Dictionary<(Point, Direction?), int> memo)
+    int SolvePart2(string inputPath)
+    {
+        Point start = new(0, 0);
+        Point end = new(0, 0);
+
+        var map = File.ReadAllLines(inputPath)
+            .Select((x, i) =>
+            {
+                if (x.Contains('S'))
+                    start = new Point(i, x.IndexOf('S'));
+                if (x.Contains('E'))
+                    end = new Point(i, x.IndexOf('E'));
+
+                return x.ToArray();
+            })
+            .ToArray();
+
+        var memo = new Dictionary<(Point, Direction?), (int Score, List<Point>? Traversed)>();
+        var traversed = new List<Point>();
+        var startMove = new Move(start);
+
+        PerformMovement(map, startMove, end, 0, traversed, memo);
+
+        return memo[(end, null)].Traversed!.Count;
+
+    }
+    static void PerformMovement(char[][] map, Move lastMove, Point endTile, int currentScore, List<Point> traversed, Dictionary<(Point, Direction?), (int Score, List<Point>? Traversed)> memo)
     {
         var availableMoves = GetAvailableMoves(map, lastMove).ToList();
 
-        if (IsFinalMove(map, availableMoves, lastMove, ref memo, currentScore))
+        traversed.Add(lastMove.Tile);
+
+        if (IsFinalMove(map, availableMoves, lastMove, traversed, memo, currentScore))
             return;
 
         while (availableMoves.Count is 1)
@@ -80,45 +115,40 @@ public class Solution
 
             currentScore = IncrementScore(currentScore, lastMove.Direction, nextMove.Direction);
             availableMoves = GetAvailableMoves(map, nextMove).ToList();
+            traversed.Add(nextMove.Tile);
 
-            if (IsFinalMove(map, availableMoves, lastMove, ref memo, currentScore))
+            if (IsFinalMove(map, availableMoves, nextMove, traversed, memo, currentScore))
                 return;
 
             lastMove = nextMove;
         }
 
-        if (memo.TryGetValue((lastMove.Tile, lastMove.Direction), out var minScore) && minScore <= currentScore)
+        if ((memo.TryGetValue((lastMove.Tile, lastMove.Direction), out var currentMin) && currentMin.Score < currentScore)
+            || (memo.TryGetValue((endTile, null), out currentMin) && currentMin.Score <= currentScore)
+            || BetterScoreInAnyDirection(memo, lastMove.Tile, currentScore))
             return;
         else
         {
-            if (BetterScoreInAnyDirection(ref memo, lastMove.Tile, currentScore))
-                return;
-
-            memo[(lastMove.Tile, lastMove.Direction)] = currentScore;
+            memo[(lastMove.Tile, lastMove.Direction)] = (currentScore, null);
         }
 
         foreach (var move in availableMoves)
         {
             var newScore = IncrementScore(currentScore, lastMove.Direction, move.Direction);
-            PerformMovement(map, move, newScore, ref memo);
+            PerformMovement(map, move, endTile, newScore, [.. traversed], memo);
         }
         return;
     }
 
-    int SolvePart2(string inputPath)
+    static bool BetterScoreInAnyDirection(Dictionary<(Point, Direction?), (int Score, List<Point>? Traversed)> memo, Point from, int currentScore)
     {
-        return 0;
-    }
-
-    static bool BetterScoreInAnyDirection(ref Dictionary<(Point, Direction?), int> memo, Point from, int currentScore)
-    {
-        if (memo.TryGetValue((from, Direction.North), out var minScore) && minScore <= currentScore - 1000)
+        if (memo.TryGetValue((from, Direction.North), out var currentMin) && currentMin.Score < currentScore - 1000)
             return true;
-        if (memo.TryGetValue((from, Direction.East), out minScore) && minScore <= currentScore - 1000)
+        if (memo.TryGetValue((from, Direction.East), out currentMin) && currentMin.Score < currentScore - 1000)
             return true;
-        if (memo.TryGetValue((from, Direction.West), out minScore) && minScore <= currentScore - 1000)
+        if (memo.TryGetValue((from, Direction.West), out currentMin) && currentMin.Score < currentScore - 1000)
             return true;
-        if (memo.TryGetValue((from, Direction.South), out minScore) && minScore <= currentScore - 1000)
+        if (memo.TryGetValue((from, Direction.South), out currentMin) && currentMin.Score < currentScore - 1000)
             return true;
 
 
@@ -156,13 +186,17 @@ public class Solution
                 : score + 1001;
     }
 
-    static bool IsFinalMove(char[][] map, List<Move> availableMoves, Move lastMove, ref Dictionary<(Point, Direction?), int> memo, int currentScore)
+    static bool IsFinalMove(char[][] map, List<Move> availableMoves, Move lastMove, List<Point> traversed, Dictionary<(Point, Direction?), (int Score, List<Point>? Traversed)> memo, int currentScore)
     {
         if (availableMoves.SingleOrDefault(x => map[x.Tile.X][x.Tile.Y] is 'E') is Move finalMove)
         {
             var totalScore = IncrementScore(currentScore, lastMove.Direction, finalMove.Direction);
-            if (!memo.TryGetValue((finalMove.Tile, null), out var score) || score > totalScore)
-                memo[(finalMove.Tile, null)] = totalScore;
+            traversed.Add(finalMove.Tile);
+
+            if (!memo.TryGetValue((finalMove.Tile, null), out var currentMin) || currentMin.Score > totalScore)
+                memo[(finalMove.Tile, null)] = (totalScore, traversed);
+            else if (memo.TryGetValue((finalMove.Tile, null), out currentMin) && currentMin.Score == totalScore)
+                memo[(finalMove.Tile, null)] = (totalScore, memo[(finalMove.Tile, null)].Traversed!.Union(traversed).ToList());
 
             return true;
         }
