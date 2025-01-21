@@ -52,8 +52,9 @@ public class Solution
             4 => registers.B ^= registers.C, //bxc
             5 => ParseOperand(OperandType.Combo, operand, registers) % 8,
             6 => registers.B = registers.A / (int)Math.Pow(ParseOperand(OperandType.Combo, operand, registers), 2), //bdv
-            7 => registers.C = registers.A / (int)Math.Pow(ParseOperand(OperandType.Combo, operand, registers), 2), //bdv
-        }
+            7 => registers.C = registers.A / (int)Math.Pow(ParseOperand(OperandType.Combo, operand, registers), 2), //cdv
+            _ => throw new NotImplementedException()
+        };
     }
 
     static int ParseOperand(OperandType operandType, int operand, Registers registers)
