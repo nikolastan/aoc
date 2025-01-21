@@ -48,7 +48,7 @@ public class Solution
         Console.WriteLine(result);
     }
 
-    int SolvePart1(string inputPath)
+    static int SolvePart1(string inputPath)
     {
         Point start = new(0, 0);
         Point end = new(0, 0);
@@ -74,7 +74,7 @@ public class Solution
         return memo[(end, null)].Score;
     }
 
-    int SolvePart2(string inputPath)
+    static int SolvePart2(string inputPath)
     {
         Point start = new(0, 0);
         Point end = new(0, 0);
@@ -100,6 +100,7 @@ public class Solution
         return memo[(end, null)].Traversed!.Count;
 
     }
+
     static void PerformMovement(char[][] map, Move lastMove, Point endTile, int currentScore, List<Point> traversed, Dictionary<(Point, Direction?), (int Score, List<Point>? Traversed)> memo)
     {
         var availableMoves = GetAvailableMoves(map, lastMove).ToList();
