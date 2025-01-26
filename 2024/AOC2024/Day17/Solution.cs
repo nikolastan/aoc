@@ -17,13 +17,27 @@ public class Solution
     {
         var result = SolvePart1("Inputs/input.txt");
         Console.WriteLine(result);
+	}
+
+	[Test]
+	public void Part1_InputTest1()
+	{
+		var result = SolvePart1("Inputs/input.txt", 2072305);
+		Console.WriteLine(result);
+	}
+
+	[Test]
+    public void Part2_Example2()
+    {
+        var result = SolvePart2("Inputs/example2.txt");
+        Assert.That(result, Is.EqualTo(117440));
     }
 
     [Test]
-    public void Part2_Example()
+    public void Part2_Example3()
     {
-        var result = SolvePart2("Inputs/example.txt");
-        Assert.That(result, Is.EqualTo(0));
+        var result = SolvePart2("Inputs/example3.txt");
+        Console.WriteLine(result);
     }
 
     [Test]
@@ -37,13 +51,37 @@ public class Solution
     {
         (var registers, var program) = ReadInput(inputPath);
 
-        return ExecuteProgram(program, registers);
+        return ExecuteProgram(program, registers, regAOverride);
     }
 
     int SolvePart2(string inputPath)
     {
-        return 0;
-    }
+		(var registers, var program) = ReadInput(inputPath);
+
+        var increments = new List<int>();
+
+        var instructionPointer = 0;
+        while(instructionPointer < program.Count)
+        {
+            if (program[instructionPointer] is 0)
+                increments.Add(program[instructionPointer + 1]);
+            instructionPointer += 2;
+        }
+        increments.Reverse();
+
+        var numOfIncrementsAdded = program.Count;
+
+		var currentRegA = increments
+				.Select(inc => (int)Math.Pow(2, inc * numOfIncrementsAdded))
+				.Aggregate((x, y) => x * y);
+
+		if (currentRegA < 0)
+			currentRegA = int.MaxValue;
+        //TODO Debug part of determining starting value of reg A
+		ExecuteProgramUntilMatch(program, registers, ref currentRegA);
+
+		return currentRegA - 7;
+	}
 
     static (Registers Registers, List<int> Program) ReadInput(string inputPath)
     {
@@ -61,6 +99,7 @@ public class Solution
 
         return (registers, programs);
     }
+
 	static string ExecuteProgram(List<int> program, Registers registers, int? regAOverride = null)
     {
 		if (regAOverride is not null)
@@ -97,6 +136,54 @@ public class Solution
 		return result[..^1];
 	}
 
+    static void ExecuteProgramUntilMatch(List<int> program, Registers registers, ref int startingRegAValue)
+    {
+		var result = new List<int>();
+		while (result.Count != program.Count || startingRegAValue > 0)
+        {
+			registers.A = startingRegAValue;
+            registers.B = 0;
+            registers.C = 0;
+
+			var instructionPointer = 0;
+			while (instructionPointer < program.Count)
+			{
+				var currentOperation = program[instructionPointer];
+
+				var currentOperand = program[instructionPointer + 1];
+
+				switch (currentOperation)
+				{
+					case 5:
+						var value = ExecuteOp(currentOperation, currentOperand, registers)!.Value;
+						if (program[result.Count] != value)
+						{
+							instructionPointer = program.Count;
+                            result = [];
+                            startingRegAValue--;
+							continue;
+						}
+						else
+							result.Add(value);
+
+						break;
+					case 3:
+						if (registers.A is not 0)
+						{
+							instructionPointer = currentOperand;
+							continue;
+						}
+						break;
+					default:
+						ExecuteOp(currentOperation, currentOperand, registers);
+						break;
+				}
+
+				instructionPointer += 2;
+			}
+		}
+	}
+
     static int? ExecuteOp(int opcode, int operand, Registers registers)
     {
         return opcode switch
@@ -104,9 +191,9 @@ public class Solution
             0 => registers.A /= (int)Math.Pow(2, ParseOperand(OperandType.Combo, operand, registers)), //adv
             1 => registers.B ^= ParseOperand(OperandType.Literal, operand, registers), //bxl
             2 => registers.B = ParseOperand(OperandType.Combo, operand, registers) % 8, //bst
-            3 => registers.A is not 0 ? 1 : 0, //jnz
+            3 => 0, //jnz
             4 => registers.B ^= registers.C, //bxc
-            5 => ParseOperand(OperandType.Combo, operand, registers) % 8,
+            5 => ParseOperand(OperandType.Combo, operand, registers) % 8, //out
             6 => registers.B = registers.A / (int)Math.Pow(2, ParseOperand(OperandType.Combo, operand, registers)), //bdv
             7 => registers.C = registers.A / (int)Math.Pow(2, ParseOperand(OperandType.Combo, operand, registers)), //cdv
             _ => throw new NotImplementedException()
