@@ -1,5 +1,4 @@
 ﻿using NUnit.Framework;
-using System.Linq.Expressions;
 
 namespace Day17;
 public class Solution
@@ -57,7 +56,41 @@ public class Solution
     {
         (var registers, var program) = ReadInput(inputPath);
 
-        var registerExp = new Dictionary<char, Expression<Func<int, long>>>();
+        var usedABitsPerRegister = new RegistersInABitsUsed();
+
+        var instructionPointer = 0;
+        var decrement = 0L;
+        var numOfLoops = 1;
+        List<int>[] usedABitsInOneLoop = [];
+
+        while (instructionPointer < program.Count - 1)
+        {
+            if (program[instructionPointer] is 0)
+            {
+                //We assume that operand will always be literal here
+                decrement += program[instructionPointer + 1];
+            }
+            else if (program[instructionPointer] is 3)
+            {
+                numOfLoops = program[instructionPointer + 1];
+            }
+            else if (program[instructionPointer] is 5)
+            {
+                usedABitsInOneLoop = program[instructionPointer + 1] switch
+                {
+                    4 => [[0], [1], [2]],
+                    5 => usedABitsPerRegister.RegisterB[..^3],
+                    6 => usedABitsPerRegister.RegisterC[..^3],
+                    _ => throw new InvalidOperationException()
+                };
+            }
+            else
+            {
+                ExecuteOpAsBitsOfRegA(program[instructionPointer], program[instructionPointer + 1], usedABitsPerRegister);
+            }
+
+            instructionPointer += 2;
+        }
 
         return 0;
     }
@@ -131,6 +164,86 @@ public class Solution
         };
     }
 
+    static List<int>[] ExecuteOpAsBitsOfRegA(long opcode, int operand, RegistersInABitsUsed usedABits)
+    {
+        if (operand is 4)
+            return opcode switch
+            {
+                0 => [],
+                3 => [],
+                1 => [],
+                2 => usedABits.RegisterB = ParseComboOpAsUsedABits(operand, usedABits)[..^3],
+                4 => usedABits.RegisterB = PerformXOROnUsedABits(usedABits.RegisterB, usedABits.RegisterC),
+                5 => [],
+                6 => usedABits.RegisterB = PerformDecrementOnUsedABits(usedABits.RegisterB, operand, usedABits),
+                7 => usedABits.RegisterC = PerformDecrementOnUsedABits(usedABits.RegisterC, operand, usedABits),
+                _ => throw new InvalidOperationException()
+            };
+
+        return [];
+    }
+
+    static List<int>[] ParseComboOpAsUsedABits(int operand, RegistersInABitsUsed usedABits)
+    {
+        return operand switch
+        {
+            int n when n >= 0 && n <= 3 => [],
+            4 => [[0], [1], [2]],
+            5 => usedABits.RegisterB,
+            6 => usedABits.RegisterC,
+            7 => throw new InvalidDataException("7 is reserved and cannot be used as literal."),
+            _ => throw new InvalidOperationException()
+        };
+    }
+
+    static List<int>[] PerformXOROnUsedABits(List<int>[] reg1, List<int>[] reg2)
+    {
+        for (int i = 0; i < reg1.Length; i++)
+        {
+            if (reg1[i] is not null && reg2[i] is not null)
+            {
+                reg1[i].AddRange(reg2[i]);
+                reg1[i] = reg1[i].Distinct().ToList();
+            }
+        }
+
+        return reg1;
+    }
+
+    static List<int>[] PerformDecrementOnUsedABits(List<int>[] reg, int comboOperand, RegistersInABitsUsed usedABits)
+    {
+        if (comboOperand >= 0 && comboOperand <= 3)
+            return Enumerable.Range(0, 64)
+                .Select((_, i) => i < 64 - comboOperand ? new List<int>() { i } : [])
+                .ToArray();
+
+        return comboOperand switch
+        {
+            4 => [],
+            5 => Enumerable.Range(0, 64)
+                .Select((x, i) =>
+                    x < 64 - usedABits.RegisterB
+                        .Select((x, i) => new { x, i })
+                        .Where(y => y.x is not null)
+                        .OrderBy(x => x.i)
+                        .Last().i
+                    ? new List<int>() { i }
+                    : [])
+                .ToArray(),
+            6 => Enumerable.Range(0, 64)
+                .Select((x, i) =>
+                    x < 64 - usedABits.RegisterC
+                        .Select((x, i) => new { x, i })
+                        .Where(y => y.x is not null)
+                        .OrderBy(x => x.i)
+                        .Last().i
+                    ? new List<int>() { i }
+                    : [])
+                .ToArray(),
+            _ => throw new InvalidOperationException()
+        };
+    }
+
     static long ParseOperand(OperandType operandType, int operand, Registers registers)
     {
         return operandType switch
@@ -154,13 +267,17 @@ public class Solution
         };
     }
 
-
-
     class Registers(long regA, long regB, long regC)
     {
         public long A = regA;
         public long B = regB;
         public long C = regC;
+    }
+
+    class RegistersInABitsUsed
+    {
+        public List<int>[] RegisterB = new List<int>[64];
+        public List<int>[] RegisterC = new List<int>[64];
     }
 
     enum OperandType
