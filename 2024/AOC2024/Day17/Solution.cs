@@ -164,23 +164,26 @@ public class Solution
         };
     }
 
-    static List<int>[] ExecuteOpAsBitsOfRegA(long opcode, int operand, RegistersInABitsUsed usedABits)
+    static void ExecuteOpAsBitsOfRegA(long opcode, int operand, RegistersInABitsUsed usedABits)
     {
-        if (operand is 4)
-            return opcode switch
-            {
-                0 => [],
-                3 => [],
-                1 => [],
-                2 => usedABits.RegisterB = ParseComboOpAsUsedABits(operand, usedABits)[..^3],
-                4 => usedABits.RegisterB = PerformXOROnUsedABits(usedABits.RegisterB, usedABits.RegisterC),
-                5 => [],
-                6 => usedABits.RegisterB = PerformDecrementOnUsedABits(usedABits.RegisterB, operand, usedABits),
-                7 => usedABits.RegisterC = PerformDecrementOnUsedABits(usedABits.RegisterC, operand, usedABits),
-                _ => throw new InvalidOperationException()
-            };
-
-        return [];
+        switch (opcode)
+        {
+            case 0 or 1 or 3 or 5:
+                return;
+            case 2:
+                usedABits.RegisterB = ParseComboOpAsUsedABits(operand, usedABits)[^3..];
+                break;
+            case 4:
+                usedABits.RegisterB = PerformXOROnUsedABits(usedABits.RegisterB, usedABits.RegisterC);
+                break;
+            case 6:
+                usedABits.RegisterB = PerformDecrementOnUsedABits(usedABits.RegisterB, operand, usedABits);
+                break;
+            case 7:
+                usedABits.RegisterC = PerformDecrementOnUsedABits(usedABits.RegisterC, operand, usedABits);
+                break;
+            default: throw new InvalidOperationException();
+        };
     }
 
     static List<int>[] ParseComboOpAsUsedABits(int operand, RegistersInABitsUsed usedABits)
@@ -188,7 +191,7 @@ public class Solution
         return operand switch
         {
             int n when n >= 0 && n <= 3 => [],
-            4 => [[0], [1], [2]],
+            4 => Enumerable.Range(0, 3).Select(x => new List<int>() { x }).ToArray(),
             5 => usedABits.RegisterB,
             6 => usedABits.RegisterC,
             7 => throw new InvalidDataException("7 is reserved and cannot be used as literal."),
