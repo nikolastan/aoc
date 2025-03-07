@@ -225,21 +225,21 @@ public class Solution
             4 => [],
             5 => Enumerable.Range(0, 64)
                 .Select((x, i) =>
-                    x < 64 - usedABits.RegisterB
+                    x > Math.Pow(2, usedABits.RegisterB
                         .Select((x, i) => new { x, i })
                         .Where(y => y.x is not null)
                         .OrderBy(x => x.i)
-                        .Last().i
+                        .Last().i)
                     ? new List<int>() { i }
                     : [])
                 .ToArray(),
             6 => Enumerable.Range(0, 64)
                 .Select((x, i) =>
-                    x < 64 - usedABits.RegisterC
+                    x > Math.Pow(2, usedABits.RegisterC
                         .Select((x, i) => new { x, i })
                         .Where(y => y.x is not null)
                         .OrderBy(x => x.i)
-                        .Last().i
+                        .Last().i)
                     ? new List<int>() { i }
                     : [])
                 .ToArray(),
