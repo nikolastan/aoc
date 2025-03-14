@@ -79,8 +79,8 @@ public class Solution
                 usedABitsInOneLoop = program[instructionPointer + 1] switch
                 {
                     4 => [[0], [1], [2]],
-                    5 => usedABitsPerRegister.RegisterB[..^3],
-                    6 => usedABitsPerRegister.RegisterC[..^3],
+                    5 => usedABitsPerRegister.RegisterB[^3..],
+                    6 => usedABitsPerRegister.RegisterC[^3..],
                     _ => throw new InvalidOperationException()
                 };
             }
@@ -213,7 +213,7 @@ public class Solution
         return reg1;
     }
 
-    static List<int>[] PerformDecrementOnUsedABits(List<int>[] reg, int comboOperand, RegistersInABitsUsed usedABits)
+    static List<int>?[] PerformDecrementOnUsedABits(List<int>[] reg, int comboOperand, RegistersInABitsUsed usedABits)
     {
         if (comboOperand >= 0 && comboOperand <= 3)
             return Enumerable.Range(0, 64)
@@ -225,23 +225,29 @@ public class Solution
             4 => [],
             5 => Enumerable.Range(0, 64)
                 .Select((x, i) =>
-                    x > Math.Pow(2, usedABits.RegisterB
+                {
+                    var y = Math.Pow(2, usedABits.RegisterB
                         .Select((x, i) => new { x, i })
                         .Where(y => y.x is not null)
                         .OrderBy(x => x.i)
-                        .Last().i)
-                    ? new List<int>() { i }
-                    : [])
+                        .Last().i);
+                    return x > 64 - y
+                    ? null
+                    : new List<int> { i + (int)y };
+                })
                 .ToArray(),
             6 => Enumerable.Range(0, 64)
                 .Select((x, i) =>
-                    x > Math.Pow(2, usedABits.RegisterC
+                {
+                    var y = Math.Pow(2, usedABits.RegisterC
                         .Select((x, i) => new { x, i })
                         .Where(y => y.x is not null)
                         .OrderBy(x => x.i)
-                        .Last().i)
-                    ? new List<int>() { i }
-                    : [])
+                        .Last().i);
+                    return x > 64 - y
+                    ? null
+                    : new List<int> { i + (int)y };
+                })
                 .ToArray(),
             _ => throw new InvalidOperationException()
         };
