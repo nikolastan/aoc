@@ -56,43 +56,29 @@ public class Solution
     {
         (var registers, var program) = ReadInput(inputPath);
 
-        var usedABitsPerRegister = new RegistersInABitsUsed();
+        return FindRegAValue(program, 0, program.Count - 1);
+    }
 
-        var instructionPointer = 0;
-        var decrement = 0L;
-        var numOfLoops = 1;
-        List<int>[] usedABitsInOneLoop = [];
-
-        while (instructionPointer < program.Count - 1)
+    static long FindRegAValue(List<int> program, long currentRegAValue, int currentProgramIndex)
+    {
+        if (ExecuteProgram(program, new Registers(), currentRegAValue) == string.Join(',', program[..^currentProgramIndex]))
         {
-            if (program[instructionPointer] is 0)
-            {
-                //We assume that operand will always be literal here
-                decrement += program[instructionPointer + 1];
-            }
-            else if (program[instructionPointer] is 3)
-            {
-                numOfLoops = program[instructionPointer + 1];
-            }
-            else if (program[instructionPointer] is 5)
-            {
-                usedABitsInOneLoop = program[instructionPointer + 1] switch
-                {
-                    4 => [[0], [1], [2]],
-                    5 => usedABitsPerRegister.RegisterB[^3..],
-                    6 => usedABitsPerRegister.RegisterC[^3..],
-                    _ => throw new InvalidOperationException()
-                };
-            }
+            if (currentProgramIndex is 0)
+                return currentRegAValue;
             else
-            {
-                ExecuteOpAsBitsOfRegA(program[instructionPointer], program[instructionPointer + 1], usedABitsPerRegister);
-            }
-
-            instructionPointer += 2;
+                return FindRegAValue(program, currentRegAValue * 8, currentProgramIndex - 1);
         }
 
-        return 0;
+        if (currentProgramIndex < program.Count - 1
+            && ExecuteProgram(program, new Registers(), currentRegAValue / 8) != string.Join(',', program[..^(currentProgramIndex + 1)]))
+        {
+            return long.MaxValue;
+        }
+
+        return Math.Min(
+            FindRegAValue(program, currentRegAValue + 1, currentProgramIndex),
+            FindRegAValue(program, currentRegAValue + 2, currentProgramIndex)
+            );
     }
 
     static (Registers Registers, List<int> Program) ReadInput(string inputPath)
@@ -164,95 +150,6 @@ public class Solution
         };
     }
 
-    static void ExecuteOpAsBitsOfRegA(long opcode, int operand, RegistersInABitsUsed usedABits)
-    {
-        switch (opcode)
-        {
-            case 0 or 1 or 3 or 5:
-                return;
-            case 2:
-                usedABits.RegisterB = ParseComboOpAsUsedABits(operand, usedABits)[^3..];
-                break;
-            case 4:
-                usedABits.RegisterB = PerformXOROnUsedABits(usedABits.RegisterB, usedABits.RegisterC);
-                break;
-            case 6:
-                usedABits.RegisterB = PerformDecrementOnUsedABits(usedABits.RegisterB, operand, usedABits);
-                break;
-            case 7:
-                usedABits.RegisterC = PerformDecrementOnUsedABits(usedABits.RegisterC, operand, usedABits);
-                break;
-            default: throw new InvalidOperationException();
-        };
-    }
-
-    static List<int>[] ParseComboOpAsUsedABits(int operand, RegistersInABitsUsed usedABits)
-    {
-        return operand switch
-        {
-            int n when n >= 0 && n <= 3 => [],
-            4 => Enumerable.Range(0, 3).Select(x => new List<int>() { x }).ToArray(),
-            5 => usedABits.RegisterB,
-            6 => usedABits.RegisterC,
-            7 => throw new InvalidDataException("7 is reserved and cannot be used as literal."),
-            _ => throw new InvalidOperationException()
-        };
-    }
-
-    static List<int>[] PerformXOROnUsedABits(List<int>[] reg1, List<int>[] reg2)
-    {
-        for (int i = 0; i < reg1.Length; i++)
-        {
-            if (reg1[i] is not null && reg2[i] is not null)
-            {
-                reg1[i].AddRange(reg2[i]);
-                reg1[i] = reg1[i].Distinct().ToList();
-            }
-        }
-
-        return reg1;
-    }
-
-    static List<int>?[] PerformDecrementOnUsedABits(List<int>[] reg, int comboOperand, RegistersInABitsUsed usedABits)
-    {
-        if (comboOperand >= 0 && comboOperand <= 3)
-            return Enumerable.Range(0, 64)
-                .Select((_, i) => i < 64 - comboOperand ? new List<int>() { i } : [])
-                .ToArray();
-
-        return comboOperand switch
-        {
-            4 => [],
-            5 => Enumerable.Range(0, 64)
-                .Select((x, i) =>
-                {
-                    var y = Math.Pow(2, usedABits.RegisterB
-                        .Select((x, i) => new { x, i })
-                        .Where(y => y.x is not null)
-                        .OrderBy(x => x.i)
-                        .Last().i);
-                    return x > 64 - y
-                    ? null
-                    : new List<int> { i + (int)y };
-                })
-                .ToArray(),
-            6 => Enumerable.Range(0, 64)
-                .Select((x, i) =>
-                {
-                    var y = Math.Pow(2, usedABits.RegisterC
-                        .Select((x, i) => new { x, i })
-                        .Where(y => y.x is not null)
-                        .OrderBy(x => x.i)
-                        .Last().i);
-                    return x > 64 - y
-                    ? null
-                    : new List<int> { i + (int)y };
-                })
-                .ToArray(),
-            _ => throw new InvalidOperationException()
-        };
-    }
-
     static long ParseOperand(OperandType operandType, int operand, Registers registers)
     {
         return operandType switch
@@ -276,17 +173,27 @@ public class Solution
         };
     }
 
-    class Registers(long regA, long regB, long regC)
+    class Registers
     {
-        public long A = regA;
-        public long B = regB;
-        public long C = regC;
+        public long A;
+        public long B;
+        public long C;
+
+        public Registers(long regA, long regB, long regC)
+        {
+            A = regA;
+            B = regB;
+            C = regC;
+        }
+
+        public Registers()
+        { }
     }
 
     class RegistersInABitsUsed
     {
-        public List<int>[] RegisterB = new List<int>[64];
-        public List<int>[] RegisterC = new List<int>[64];
+        public List<int>?[] RegisterB = new List<int>[64];
+        public List<int>?[] RegisterC = new List<int>[64];
     }
 
     enum OperandType
