@@ -59,26 +59,27 @@ public class Solution
         return FindRegAValue(program, 0, program.Count - 1);
     }
 
-    static long FindRegAValue(List<int> program, long currentRegAValue, int currentProgramIndex)
+    static long FindRegAValue(List<int> program, long currentRegAValue, int currentProgramIndex, int shift = 0)
     {
-        if (ExecuteProgram(program, new Registers(), currentRegAValue) == string.Join(',', program[..^currentProgramIndex]))
+        if (ExecuteProgram(program, new Registers(), currentRegAValue) == string.Join(',', program[^(program.Count - currentProgramIndex)..]))
         {
             if (currentProgramIndex is 0)
                 return currentRegAValue;
             else
-                return FindRegAValue(program, currentRegAValue * 8, currentProgramIndex - 1);
+                return FindRegAValue(program,
+                    currentRegAValue * 8,
+                    currentProgramIndex - 1,
+                    shift: currentRegAValue is 0 ? shift + 3 : 0);
         }
 
-        if (currentProgramIndex < program.Count - 1
-            && ExecuteProgram(program, new Registers(), currentRegAValue / 8) != string.Join(',', program[..^(currentProgramIndex + 1)]))
+        if (currentProgramIndex < program.Count - 1 &&
+            ExecuteProgram(program, new Registers(), currentRegAValue / 8) != string.Join(',', program[^(program.Count - currentProgramIndex - 1)..]))
         {
-            return long.MaxValue;
+            return FindRegAValue(program, currentRegAValue / 8 + 1, currentProgramIndex + 1);
         }
 
-        return Math.Min(
-            FindRegAValue(program, currentRegAValue + 1, currentProgramIndex),
-            FindRegAValue(program, currentRegAValue + 2, currentProgramIndex)
-            );
+        return FindRegAValue(program, (currentRegAValue + 1) * (long)Math.Pow(2, shift), currentProgramIndex);
+
     }
 
     static (Registers Registers, List<int> Program) ReadInput(string inputPath)
