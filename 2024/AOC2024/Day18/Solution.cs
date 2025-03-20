@@ -7,14 +7,14 @@ public class Solution
     [Test]
     public void Part1_Example()
     {
-        var result = SolvePart1("Inputs/example.txt", 6);
+        var result = SolvePart1("Inputs/example.txt", 7, 12);
         Assert.That(result, Is.EqualTo(22));
     }
 
     [Test]
     public void Part1_Input()
     {
-        var result = SolvePart1("Inputs/input.txt", 70);
+        var result = SolvePart1("Inputs/input.txt", 71, 1024);
         Console.WriteLine(result);
     }
 
@@ -31,9 +31,9 @@ public class Solution
         var result = SolvePart2("Inputs/input.txt");
         Console.WriteLine(result);
     }
-    int SolvePart1(string inputPath, int mapDim)
+    int SolvePart1(string inputPath, int mapDim, int numOfBytesFallen)
     {
-        var map = ReadMap(inputPath, mapDim);
+        var map = ReadMap(inputPath, mapDim, numOfBytesFallen);
         Dictionary<(int, int), int> memo = [];
         FindMinSteps(map, (0, 0), (mapDim - 1, mapDim - 1), 0, memo);
 
@@ -45,11 +45,12 @@ public class Solution
         return 0;
     }
 
-    static char[][] ReadMap(string inputPath, int mapDim)
+    static char[][] ReadMap(string inputPath, int mapDim, int numOfBytesFallen)
     {
         var byteCoordinates = File.ReadAllLines(inputPath)
             .Select(x => x.Split(','))
             .Select(x => (int.Parse(x[0]), int.Parse(x[1])))
+            .Take(numOfBytesFallen)
             .ToList();
 
         return Enumerable.Range(0, mapDim)
@@ -71,29 +72,30 @@ public class Solution
         if (map[currentPos.X][currentPos.Y] is '#')
             return;
 
-        if (currentPos == end)
-        {
-            if (memo.TryGetValue(end, out var currentMinSteps) && currentMinSteps > currentSteps)
-                memo[end] = currentSteps;
-
-            return;
-        }
-
-        if (memo.TryGetValue(currentPos, out var currentMin) && currentSteps > currentMin)
+        if (memo.TryGetValue(currentPos, out var currentMin) && currentSteps >= currentMin)
             return;
         else
             memo[currentPos] = currentSteps;
 
-        if (ArrayExtensions.IsValidTile(map, currentPos.X + 1, currentPos.Y))
-            FindMinSteps(map, (currentPos.X + 1, currentPos.Y), end, ++currentSteps, memo);
+        if (currentPos == end)
+            return;
 
-        if (ArrayExtensions.IsValidTile(map, currentPos.X, currentPos.Y + 1))
-            FindMinSteps(map, (currentPos.X, currentPos.Y + 1), end, ++currentSteps, memo);
+        var nextPos = (currentPos.X + 1, currentPos.Y);
+        if (ArrayExtensions.IsValidTile(map, nextPos))
+            FindMinSteps(map, nextPos, end, currentSteps + 1, memo);
 
-        if (ArrayExtensions.IsValidTile(map, currentPos.X - 1, currentPos.Y))
-            FindMinSteps(map, (currentPos.X - 1, currentPos.Y), end, ++currentSteps, memo);
+        nextPos = (currentPos.X, currentPos.Y + 1);
+        if (ArrayExtensions.IsValidTile(map, nextPos))
+            FindMinSteps(map, nextPos, end, currentSteps + 1, memo);
 
-        if (ArrayExtensions.IsValidTile(map, currentPos.X, currentPos.Y - 1))
-            FindMinSteps(map, (currentPos.X, currentPos.Y - 1), end, ++currentSteps, memo);
+        nextPos = (currentPos.X - 1, currentPos.Y);
+        if (ArrayExtensions.IsValidTile(map, nextPos))
+            FindMinSteps(map, nextPos, end, currentSteps + 1, memo);
+
+        nextPos = (currentPos.X, currentPos.Y - 1);
+        if (ArrayExtensions.IsValidTile(map, nextPos))
+            FindMinSteps(map, nextPos, end, currentSteps + 1, memo);
     }
 }
+
+
