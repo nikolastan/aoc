@@ -48,24 +48,18 @@ public class Solution
         var fallingBytes = ReadFallingBytes(inputPath, numOfBytesFallen);
 
         List<(int X, int Y)> blockingBytes = [];
-        FindBlockingBytes(map, (0, 0), (mapDim - 1, mapDim - 1), [], [], blockingBytes);
+        FindBlockingBytes(map, new Queue<(int X, int Y)>(fallingBytes), (0, 0), (mapDim - 1, mapDim - 1), [], blockingBytes);
 
-        (int X, int Y)? lastByte = null;
-        foreach (var @byte in fallingBytes)
-        {
-            if (blockingBytes.Contains(@byte))
-                lastByte = @byte;
-            else
-                break;
-        }
+        var lastByte = blockingBytes
+            .Distinct()
+            .Select(@byte => new { @byte.X, @byte.Y, Tile = map[@byte.X][@byte.Y] })
+            .OrderByDescending(x => x.Tile.Value)
+            .First();
 
-        if (lastByte is null)
-            throw new InvalidOperationException("Byte that prevents exit was not found!");
-
-        return $"{lastByte.Value.X},{lastByte.Value.Y}";
+        return $"{lastByte.X},{lastByte.Y}";
     }
 
-    static char[][] ReadMap(string inputPath, int mapDim, int numOfBytesFallen)
+    static Tile[][] ReadMap(string inputPath, int mapDim, int numOfBytesFallen)
     {
         var parsedBytes = ParseByteCoordinates(File.ReadAllLines(inputPath));
 
@@ -78,15 +72,15 @@ public class Solution
             .ToList();
 
         return Enumerable.Range(0, mapDim)
-            .Select(x => new char[mapDim])
+            .Select(x => new Tile[mapDim])
             .Select((row, i) => row.Select((_, j) =>
             {
                 if (fallenBytes.Contains((i, j)))
-                    return '#';
+                    return new Tile(TileType.Corrupt);
                 if (upBytes.Contains((i, j)))
-                    return '?';
+                    return new Tile(TileType.Falling, upBytes.IndexOf((i, j)));
 
-                return '.';
+                return new Tile(TileType.Free);
             }).ToArray())
             .ToArray();
     }
@@ -104,13 +98,13 @@ public class Solution
     }
 
     static void FindMinSteps(
-        char[][] map,
+        Tile[][] map,
         (int X, int Y) currentPos,
         (int X, int Y) end,
         int currentSteps,
         Dictionary<(int X, int Y), int> memo)
     {
-        if (map[currentPos.X][currentPos.Y] is '#')
+        if (map[currentPos.X][currentPos.Y].Type is TileType.Corrupt)
             return;
 
         if (memo.TryGetValue(currentPos, out var currentMin) && currentSteps >= currentMin)
@@ -139,14 +133,15 @@ public class Solution
     }
 
     static void FindBlockingBytes(
-        char[][] map,
+        Tile[][] map,
+        Queue<(int X, int Y)> fallingBytes,
         (int X, int Y) currentPos,
         (int X, int Y) end,
         List<(int, int)> currentRoute,
-        List<(int, int)> currentBlockingBytes,
-        List<(int, int)> totalBlockingBytes)
+		List<(int, int)> totalBlockingBytes,
+		(int, int)? currentBlockingByte = null)
     {
-        if (map[currentPos.X][currentPos.Y] is '#')
+        if (map[currentPos.X][currentPos.Y].Type is TileType.Corrupt)
             return;
 
         if (currentRoute.Contains(currentPos))
@@ -154,42 +149,52 @@ public class Solution
         else
             currentRoute.Add(currentPos);
 
-        if (map[currentPos.X][currentPos.Y] is '?' && !currentBlockingBytes.Contains(currentPos))
-        {
-            currentBlockingBytes.Add(currentPos);
-        }
+		if (map[currentPos.X][currentPos.Y].Type is TileType.Falling)
+		{
+			if (totalBlockingBytes.Contains(currentPos))
+				return;
 
-        if (currentPos == end)
+			var nextBlock = fallingBytes.Peek();
+
+			if (nextBlock == currentPos)
+            {
+                currentBlockingByte = nextBlock;
+                fallingBytes.Dequeue();
+            }
+        }
+        else if (currentPos == end && currentBlockingByte is not null)
         {
-            totalBlockingBytes.AddRange(currentBlockingBytes);
+            totalBlockingBytes.Add(currentBlockingByte.Value);
             return;
         }
 
         var nextPos = (currentPos.X + 1, currentPos.Y);
         if (ArrayExtensions.IsValidTile(map, nextPos))
-            FindBlockingBytes(map, nextPos, end,
-                new List<(int, int)>(currentRoute),
-                new List<(int, int)>(currentBlockingBytes), totalBlockingBytes);
+            FindBlockingBytes(map, fallingBytes, nextPos, end, new List<(int, int)>(currentRoute), totalBlockingBytes, currentBlockingByte);
 
         nextPos = (currentPos.X, currentPos.Y + 1);
-        if (ArrayExtensions.IsValidTile(map, nextPos))
-            FindBlockingBytes(map, nextPos, end,
-                new List<(int, int)>(currentRoute),
-                new List<(int, int)>(currentBlockingBytes),
-                totalBlockingBytes);
+		if (ArrayExtensions.IsValidTile(map, nextPos))
+			FindBlockingBytes(map, fallingBytes, nextPos, end, new List<(int, int)>(currentRoute), totalBlockingBytes, currentBlockingByte);
 
-        nextPos = (currentPos.X - 1, currentPos.Y);
-        if (ArrayExtensions.IsValidTile(map, nextPos))
-            FindBlockingBytes(map, nextPos, end,
-                new List<(int, int)>(currentRoute),
-                new List<(int, int)>(currentBlockingBytes),
-                totalBlockingBytes);
+		nextPos = (currentPos.X - 1, currentPos.Y);
+		if (ArrayExtensions.IsValidTile(map, nextPos))
+			FindBlockingBytes(map, fallingBytes, nextPos, end, new List<(int, int)>(currentRoute), totalBlockingBytes, currentBlockingByte);
 
-        nextPos = (currentPos.X, currentPos.Y - 1);
-        if (ArrayExtensions.IsValidTile(map, nextPos))
-            FindBlockingBytes(map, nextPos, end,
-                new List<(int, int)>(currentRoute),
-                new List<(int, int)>(currentBlockingBytes),
-                totalBlockingBytes);
+		nextPos = (currentPos.X, currentPos.Y - 1);
+		if (ArrayExtensions.IsValidTile(map, nextPos))
+			FindBlockingBytes(map, fallingBytes, nextPos, end, new List<(int, int)>(currentRoute), totalBlockingBytes, currentBlockingByte);
+	}
+
+    class Tile(TileType type, int? value = null)
+    {
+        public TileType Type = type;
+        public int? Value =  value;
+    }
+
+    enum TileType
+    {
+        Free,
+        Corrupt,
+        Falling
     }
 }
