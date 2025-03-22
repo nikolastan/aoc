@@ -47,16 +47,15 @@ public class Solution
 
         var fallingBytes = ReadFallingBytes(inputPath, numOfBytesFallen);
 
-        List<(int X, int Y)> blockingBytes = [];
-        FindBlockingBytes(map, new Queue<(int X, int Y)>(fallingBytes), (0, 0), (mapDim - 1, mapDim - 1), [], blockingBytes);
+        foreach(var @byte in fallingBytes)
+        {
+            map[@byte.X][@byte.Y].Type = TileType.Corrupt;
 
-        var lastByte = blockingBytes
-            .Distinct()
-            .Select(@byte => new { @byte.X, @byte.Y, Tile = map[@byte.X][@byte.Y] })
-            .OrderByDescending(x => x.Tile.Value)
-            .First();
+            if(!IsReachable(map, (0, 0), (mapDim - 1, mapDim - 1), []))
+                return $"{@byte.X},{@byte.Y}";
+		}
 
-        return $"{lastByte.X},{lastByte.Y}";
+        throw new InvalidOperationException("Byte that prevents exit was not found!");
     }
 
     static Tile[][] ReadMap(string inputPath, int mapDim, int numOfBytesFallen)
@@ -77,8 +76,6 @@ public class Solution
             {
                 if (fallenBytes.Contains((i, j)))
                     return new Tile(TileType.Corrupt);
-                if (upBytes.Contains((i, j)))
-                    return new Tile(TileType.Falling, upBytes.IndexOf((i, j)));
 
                 return new Tile(TileType.Free);
             }).ToArray())
@@ -132,69 +129,38 @@ public class Solution
             FindMinSteps(map, nextPos, end, currentSteps + 1, memo);
     }
 
-    static void FindBlockingBytes(
-        Tile[][] map,
-        Queue<(int X, int Y)> fallingBytes,
-        (int X, int Y) currentPos,
-        (int X, int Y) end,
-        List<(int, int)> currentRoute,
-		List<(int, int)> totalBlockingBytes,
-		(int, int)? currentBlockingByte = null)
+    static bool IsReachable(Tile[][] map, (int X, int Y) currentPos, (int X, int Y) end, List<(int, int)> tilesVisited)
     {
-        if (map[currentPos.X][currentPos.Y].Type is TileType.Corrupt)
-            return;
+        if (!ArrayExtensions.IsValidTile(map, currentPos)
+            || map[currentPos.X][currentPos.Y].Type is TileType.Corrupt
+            || tilesVisited.Contains(currentPos))
+            return false;
 
-        if (currentRoute.Contains(currentPos))
-            return;
-        else
-            currentRoute.Add(currentPos);
+        if (currentPos == end)
+            return true;
 
-		if (map[currentPos.X][currentPos.Y].Type is TileType.Falling)
-		{
-			if (totalBlockingBytes.Contains(currentPos))
-				return;
+        tilesVisited.Add(currentPos);
 
-			var nextBlock = fallingBytes.Peek();
-
-			if (nextBlock == currentPos)
-            {
-                currentBlockingByte = nextBlock;
-                fallingBytes.Dequeue();
-            }
-        }
-        else if (currentPos == end && currentBlockingByte is not null)
+        var flood = new List<Func<bool>>()
         {
-            totalBlockingBytes.Add(currentBlockingByte.Value);
-            return;
-        }
+            () => IsReachable(map, (currentPos.X + 1, currentPos.Y), end, tilesVisited),
+            () => IsReachable(map, (currentPos.X, currentPos.Y + 1), end, tilesVisited),
+            () => IsReachable(map, (currentPos.X - 1, currentPos.Y), end, tilesVisited),
+            () => IsReachable(map, (currentPos.X, currentPos.Y - 1), end, tilesVisited),
+        };
 
-        var nextPos = (currentPos.X + 1, currentPos.Y);
-        if (ArrayExtensions.IsValidTile(map, nextPos))
-            FindBlockingBytes(map, fallingBytes, nextPos, end, new List<(int, int)>(currentRoute), totalBlockingBytes, currentBlockingByte);
-
-        nextPos = (currentPos.X, currentPos.Y + 1);
-		if (ArrayExtensions.IsValidTile(map, nextPos))
-			FindBlockingBytes(map, fallingBytes, nextPos, end, new List<(int, int)>(currentRoute), totalBlockingBytes, currentBlockingByte);
-
-		nextPos = (currentPos.X - 1, currentPos.Y);
-		if (ArrayExtensions.IsValidTile(map, nextPos))
-			FindBlockingBytes(map, fallingBytes, nextPos, end, new List<(int, int)>(currentRoute), totalBlockingBytes, currentBlockingByte);
-
-		nextPos = (currentPos.X, currentPos.Y - 1);
-		if (ArrayExtensions.IsValidTile(map, nextPos))
-			FindBlockingBytes(map, fallingBytes, nextPos, end, new List<(int, int)>(currentRoute), totalBlockingBytes, currentBlockingByte);
+        return flood.Any(x => x.Invoke());
 	}
 
-    class Tile(TileType type, int? value = null)
+    class Tile(TileType type)
     {
         public TileType Type = type;
-        public int? Value =  value;
+        public bool Traversed = false;
     }
 
     enum TileType
     {
         Free,
-        Corrupt,
-        Falling
+        Corrupt
     }
 }
