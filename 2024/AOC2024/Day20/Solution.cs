@@ -11,31 +11,32 @@ public class Solution
     [Test]
     public void Part1_Example()
     {
-        var result = SolvePart1("Inputs/example.txt", 2, 38);
+        var result = Solve("Inputs/example.txt", 2, 38);
         Assert.That(result, Is.EqualTo(3));
     }
 
     [Test]
     public void Part1_Input()
     {
-        var result = SolvePart1("Inputs/input.txt", 2, 100);
+        var result = Solve("Inputs/input.txt", 2, 100);
         Console.WriteLine(result);
     }
 
     [Test]
     public void Part2_Example()
     {
-        var result = SolvePart1("Inputs/example.txt", 20, 50);
+        var result = Solve("Inputs/example.txt", 20, 50);
         Assert.That(result, Is.EqualTo(285));
     }
 
     [Test]
     public void Part2_Input()
     {
-        var result = SolvePart1("Inputs/input.txt", 20, 100);
+        var result = Solve("Inputs/input.txt", 20, 100);
         Console.WriteLine(result);
     }
-    int SolvePart1(string inputPath, int picosPerCheat, int minPicoseconds)
+
+    int Solve(string inputPath, int picosPerCheat, int minPicoseconds)
     {
         var map = File.ReadLines(inputPath)
             .Select(x => x.ToCharArray())
@@ -44,11 +45,6 @@ public class Solution
         var route = GetRaceRoute(map);
 
         return CountCheats(map, route, picosPerCheat, minPicoseconds);
-    }
-
-    int SolvePart2(string inputPath)
-    {
-        return 0;
     }
 
     List<(int X, int Y)> GetRaceRoute(char[][] map)
@@ -94,18 +90,28 @@ public class Solution
 
     int CountCheats(char[][] map, List<(int X, int Y)> route, int picosPerCheat, int minPicoseconds)
     {
-        var count = 0;
-        var i = 0;
+		int count = 0;
+		int i = 0;
 
-        foreach (var (X, Y) in route[..^(minPicoseconds + 2)])
-        {
-            count += route[(minPicoseconds + i + 2)..]
-                .Where(tile => (Math.Abs(X - tile.X) + Math.Abs(Y - tile.Y)) <= picosPerCheat)
-                .Count();
+		foreach (var (X, Y) in route.Take(route.Count - minPicoseconds))
+		{
+			int startIndex = minPicoseconds + i;
+			var futurePositions = route.Skip(startIndex).ToList();
 
-            i++;
-        }
+			for (int j = 0; j < futurePositions.Count; j++)
+			{
+				var futurePos = futurePositions[j];
+				int distance = Math.Abs(X - futurePos.X) + Math.Abs(Y - futurePos.Y);
 
-        return count;
-    }
+				if (distance <= picosPerCheat && j - distance >= 0)
+				{
+					count++;
+				}
+			}
+
+			i++;
+		}
+
+		return count;
+	}
 }
