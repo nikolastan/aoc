@@ -47,25 +47,18 @@ public class Solution
 
         var fallingBytes = ReadFallingBytes(inputPath, numOfBytesFallen);
 
-        List<(int X, int Y)> blockingBytes = [];
-        FindBlockingBytes(map, (0, 0), (mapDim - 1, mapDim - 1), [], [], blockingBytes);
-
-        (int X, int Y)? lastByte = null;
-        foreach (var @byte in fallingBytes)
+        foreach(var @byte in fallingBytes)
         {
-            if (blockingBytes.Contains(@byte))
-                lastByte = @byte;
-            else
-                break;
-        }
+            map[@byte.X][@byte.Y].Type = TileType.Corrupt;
 
-        if (lastByte is null)
-            throw new InvalidOperationException("Byte that prevents exit was not found!");
+            if(!IsReachable(map, (0, 0), (mapDim - 1, mapDim - 1), []))
+                return $"{@byte.X},{@byte.Y}";
+		}
 
-        return $"{lastByte.Value.X},{lastByte.Value.Y}";
+        throw new InvalidOperationException("Byte that prevents exit was not found!");
     }
 
-    static char[][] ReadMap(string inputPath, int mapDim, int numOfBytesFallen)
+    static Tile[][] ReadMap(string inputPath, int mapDim, int numOfBytesFallen)
     {
         var parsedBytes = ParseByteCoordinates(File.ReadAllLines(inputPath));
 
@@ -78,15 +71,13 @@ public class Solution
             .ToList();
 
         return Enumerable.Range(0, mapDim)
-            .Select(x => new char[mapDim])
+            .Select(x => new Tile[mapDim])
             .Select((row, i) => row.Select((_, j) =>
             {
                 if (fallenBytes.Contains((i, j)))
-                    return '#';
-                if (upBytes.Contains((i, j)))
-                    return '?';
+                    return new Tile(TileType.Corrupt);
 
-                return '.';
+                return new Tile(TileType.Free);
             }).ToArray())
             .ToArray();
     }
@@ -104,13 +95,13 @@ public class Solution
     }
 
     static void FindMinSteps(
-        char[][] map,
+        Tile[][] map,
         (int X, int Y) currentPos,
         (int X, int Y) end,
         int currentSteps,
         Dictionary<(int X, int Y), int> memo)
     {
-        if (map[currentPos.X][currentPos.Y] is '#')
+        if (map[currentPos.X][currentPos.Y].Type is TileType.Corrupt)
             return;
 
         if (memo.TryGetValue(currentPos, out var currentMin) && currentSteps >= currentMin)
@@ -138,58 +129,38 @@ public class Solution
             FindMinSteps(map, nextPos, end, currentSteps + 1, memo);
     }
 
-    static void FindBlockingBytes(
-        char[][] map,
-        (int X, int Y) currentPos,
-        (int X, int Y) end,
-        List<(int, int)> currentRoute,
-        List<(int, int)> currentBlockingBytes,
-        List<(int, int)> totalBlockingBytes)
+    static bool IsReachable(Tile[][] map, (int X, int Y) currentPos, (int X, int Y) end, List<(int, int)> tilesVisited)
     {
-        if (map[currentPos.X][currentPos.Y] is '#')
-            return;
-
-        if (currentRoute.Contains(currentPos))
-            return;
-        else
-            currentRoute.Add(currentPos);
-
-        if (map[currentPos.X][currentPos.Y] is '?' && !currentBlockingBytes.Contains(currentPos))
-        {
-            currentBlockingBytes.Add(currentPos);
-        }
+        if (!ArrayExtensions.IsValidTile(map, currentPos)
+            || map[currentPos.X][currentPos.Y].Type is TileType.Corrupt
+            || tilesVisited.Contains(currentPos))
+            return false;
 
         if (currentPos == end)
+            return true;
+
+        tilesVisited.Add(currentPos);
+
+        var flood = new List<Func<bool>>()
         {
-            totalBlockingBytes.AddRange(currentBlockingBytes);
-            return;
-        }
+            () => IsReachable(map, (currentPos.X + 1, currentPos.Y), end, tilesVisited),
+            () => IsReachable(map, (currentPos.X, currentPos.Y + 1), end, tilesVisited),
+            () => IsReachable(map, (currentPos.X - 1, currentPos.Y), end, tilesVisited),
+            () => IsReachable(map, (currentPos.X, currentPos.Y - 1), end, tilesVisited),
+        };
 
-        var nextPos = (currentPos.X + 1, currentPos.Y);
-        if (ArrayExtensions.IsValidTile(map, nextPos))
-            FindBlockingBytes(map, nextPos, end,
-                new List<(int, int)>(currentRoute),
-                new List<(int, int)>(currentBlockingBytes), totalBlockingBytes);
+        return flood.Any(x => x.Invoke());
+	}
 
-        nextPos = (currentPos.X, currentPos.Y + 1);
-        if (ArrayExtensions.IsValidTile(map, nextPos))
-            FindBlockingBytes(map, nextPos, end,
-                new List<(int, int)>(currentRoute),
-                new List<(int, int)>(currentBlockingBytes),
-                totalBlockingBytes);
+    class Tile(TileType type)
+    {
+        public TileType Type = type;
+        public bool Traversed = false;
+    }
 
-        nextPos = (currentPos.X - 1, currentPos.Y);
-        if (ArrayExtensions.IsValidTile(map, nextPos))
-            FindBlockingBytes(map, nextPos, end,
-                new List<(int, int)>(currentRoute),
-                new List<(int, int)>(currentBlockingBytes),
-                totalBlockingBytes);
-
-        nextPos = (currentPos.X, currentPos.Y - 1);
-        if (ArrayExtensions.IsValidTile(map, nextPos))
-            FindBlockingBytes(map, nextPos, end,
-                new List<(int, int)>(currentRoute),
-                new List<(int, int)>(currentBlockingBytes),
-                totalBlockingBytes);
+    enum TileType
+    {
+        Free,
+        Corrupt
     }
 }
