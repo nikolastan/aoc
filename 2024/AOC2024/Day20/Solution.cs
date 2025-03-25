@@ -11,31 +11,31 @@ public class Solution
     [Test]
     public void Part1_Example()
     {
-        var result = SolvePart1("Inputs/example.txt", 38);
+        var result = SolvePart1("Inputs/example.txt", 2, 38);
         Assert.That(result, Is.EqualTo(3));
     }
 
     [Test]
     public void Part1_Input()
     {
-        var result = SolvePart1("Inputs/input.txt", 100);
+        var result = SolvePart1("Inputs/input.txt", 2, 100);
         Console.WriteLine(result);
     }
 
     [Test]
     public void Part2_Example()
     {
-        var result = SolvePart2("Inputs/example.txt");
-        Assert.That(result, Is.EqualTo(0));
+        var result = SolvePart1("Inputs/example.txt", 20, 50);
+        Assert.That(result, Is.EqualTo(285));
     }
 
     [Test]
     public void Part2_Input()
     {
-        var result = SolvePart2("Inputs/input.txt");
+        var result = SolvePart1("Inputs/input.txt", 20, 100);
         Console.WriteLine(result);
     }
-    int SolvePart1(string inputPath, int minPicoseconds)
+    int SolvePart1(string inputPath, int picosPerCheat, int minPicoseconds)
     {
         var map = File.ReadLines(inputPath)
             .Select(x => x.ToCharArray())
@@ -43,7 +43,7 @@ public class Solution
 
         var route = GetRaceRoute(map);
 
-        return CountCheats(map, route, minPicoseconds);
+        return CountCheats(map, route, picosPerCheat, minPicoseconds);
     }
 
     int SolvePart2(string inputPath)
@@ -67,49 +67,45 @@ public class Solution
 
         List<(int X, int Y)> route = [];
         var currentTile = start!.Value;
+        var vectors = possibleDirections.Select(x => x.GetAttribute<VectorAttribute>()).Select(x => (x.Di, x.Dj));
 
         while (currentTile != end)
         {
             route.Add(currentTile);
-
-            foreach (var (dx, dy) in possibleDirections.Select(x => x.GetAttribute<VectorAttribute>()).Select(x => (x.Di, x.Dj)))
+            foreach (var (dx, dy) in vectors)
             {
                 var nextTile = (currentTile.X + dx, currentTile.Y + dy);
-
                 if (IsValidMove(map, route, nextTile))
                 {
+                    map[currentTile.X][currentTile.Y] = '#';
                     currentTile = nextTile;
                     break;
                 }
             }
         }
         route.Add(end!.Value);
-
         return route;
     }
 
     bool IsValidMove(char[][] map, List<(int, int)> route, (int X, int Y) nextTile)
     {
-        return ArrayExtensions.IsValidTile(map, nextTile)
-            && !route.Contains(nextTile)
-            && map[nextTile.X][nextTile.Y] != '#';
+        return map[nextTile.X][nextTile.Y] != '#';
     }
 
-    int CountCheats(char[][] map, List<(int X, int Y)> route, int minPicoseconds)
+    int CountCheats(char[][] map, List<(int X, int Y)> route, int picosPerCheat, int minPicoseconds)
     {
         var count = 0;
         var i = 0;
-        foreach (var (X, Y) in route)
-        {
-            var nearbyTiles = route
-                .Select((tile, i) => new { tile, i })
-                .Where(x => (Math.Abs(X - x.tile.X) < 3 && Y == x.tile.Y)
-                    || (Math.Abs(Y - x.tile.Y) < 3 && X == x.tile.X));
 
-            count += nearbyTiles.Select(x => Math.Abs(x.i - i) - 2).Where(x => x >= minPicoseconds).Count();
+        foreach (var (X, Y) in route[..^(minPicoseconds + 2)])
+        {
+            count += route[(minPicoseconds + i + 2)..]
+                .Where(tile => (Math.Abs(X - tile.X) + Math.Abs(Y - tile.Y)) <= picosPerCheat)
+                .Count();
+
             i++;
         }
 
-        return count / 2;
+        return count;
     }
 }
