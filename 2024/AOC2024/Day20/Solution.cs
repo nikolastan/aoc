@@ -44,7 +44,7 @@ public class Solution
 
         var route = GetRaceRoute(map);
 
-        return CountCheats(map, route, picosPerCheat, minPicoseconds);
+        return CountCheats(route, picosPerCheat, minPicoseconds);
     }
 
     List<(int X, int Y)> GetRaceRoute(char[][] map)
@@ -88,7 +88,7 @@ public class Solution
         return map[nextTile.X][nextTile.Y] != '#';
     }
 
-    int CountCheats(char[][] map, List<(int X, int Y)> route, int picosPerCheat, int minPicoseconds)
+    int CountCheats(List<(int X, int Y)> route, int picosPerCheat, int minPicoseconds)
     {
 		int count = 0;
 		int i = 0;
