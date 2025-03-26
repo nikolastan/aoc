@@ -90,28 +90,28 @@ public class Solution
 
     int CountCheats(List<(int X, int Y)> route, int picosPerCheat, int minPicoseconds)
     {
-		int count = 0;
-		int i = 0;
+        int count = 0;
+        int i = 0;
 
-		foreach (var (X, Y) in route.Take(route.Count - minPicoseconds))
-		{
-			int startIndex = minPicoseconds + i;
-			var futurePositions = route.Skip(startIndex).ToList();
+        foreach (var (X, Y) in route.Take(route.Count - minPicoseconds))
+        {
+            int startIndex = minPicoseconds + i;
+            //var futurePositions = route.Skip(startIndex).ToList();
 
-			for (int j = 0; j < futurePositions.Count; j++)
-			{
-				var futurePos = futurePositions[j];
-				int distance = Math.Abs(X - futurePos.X) + Math.Abs(Y - futurePos.Y);
+            for (int j = 0; j < route.Count - startIndex; j++)
+            {
+                var futurePos = route[startIndex + j];
+                int distance = Math.Abs(X - futurePos.X) + Math.Abs(Y - futurePos.Y);
 
-				if (distance <= picosPerCheat && j - distance >= 0)
-				{
-					count++;
-				}
-			}
+                if (distance <= picosPerCheat && j - distance >= 0)
+                {
+                    count++;
+                }
+            }
 
-			i++;
-		}
+            i++;
+        }
 
-		return count;
-	}
+        return count;
+    }
 }
