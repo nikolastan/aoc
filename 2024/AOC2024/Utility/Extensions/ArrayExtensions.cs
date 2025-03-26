@@ -30,11 +30,11 @@ public static class ArrayExtensions
             && tile.Y < grid[tile.X].Length;
     }
 
-    public static bool IsValidTile<T>(T[,] grid, int x, int y)
+    public static bool IsValidTile<T>(T[,] grid, (int X, int Y) tile)
     {
-        return x >= 0
-            && x < grid.GetLength(0)
-            && y >= 0
-            && y < grid.GetLength(1);
+        return tile.X >= 0
+            && tile.X < grid.GetLength(0)
+            && tile.Y >= 0
+            && tile.Y < grid.GetLength(1);
     }
 }

@@ -96,8 +96,6 @@ public class Solution
         foreach (var (X, Y) in route.Take(route.Count - minPicoseconds))
         {
             int startIndex = minPicoseconds + i;
-            //var futurePositions = route.Skip(startIndex).ToList();
-
             for (int j = 0; j < route.Count - startIndex; j++)
             {
                 var futurePos = route[startIndex + j];
@@ -108,7 +106,6 @@ public class Solution
                     count++;
                 }
             }
-
             i++;
         }
 
