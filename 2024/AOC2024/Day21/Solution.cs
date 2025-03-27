@@ -56,11 +56,10 @@ public class Solution
             var first = Translate(NumericKeyboard, (3, 2), code);
             var second = Translate(DirectionalKeyboard, (0, 2), first);
             var third = Translate(DirectionalKeyboard, (0, 2), second);
-            var fourth = Translate(DirectionalKeyboard, (0, 2), third);
 
-            var numericPart = int.Parse(code[1..3]);
+            var numericPart = int.Parse(code[0..3]);
 
-            result += numericPart * fourth.Length;
+            result += numericPart * third.Length;
         }
 
         return result;
@@ -88,7 +87,9 @@ public class Solution
                 .Cast<(int X, int Y)>()
                 .ToList();
 
-            result += string.Concat<char>([.. TranslateDirectionsToCode(directionVectors), 'A']);
+            var translatedCode = TranslateDirectionsToCode(directionVectors);
+
+            result += string.Concat<char>([.. translatedCode, 'A']);
             currentTile = goalCoordinates;
         }
 
@@ -107,16 +108,16 @@ public class Solution
             || map[currentTile.X, currentTile.Y] == 'X')
             return;
 
-        if (!memo.TryGetValue(currentTile, out var currentMin) || currentMin.Count > currentRoute.Count)
+        if (!memo.TryGetValue(currentTile, out var currentMin) || currentMin.Count - 1 > currentRoute.Count)
             memo[currentTile] = [.. currentRoute, currentTile];
 
         if (currentTile == goal)
             return;
 
-        FindShortestRoute(map, (currentTile.X, currentTile.Y + 1), goal, [.. currentRoute, currentTile], memo);
         FindShortestRoute(map, (currentTile.X + 1, currentTile.Y), goal, [.. currentRoute, currentTile], memo);
-        FindShortestRoute(map, (currentTile.X, currentTile.Y - 1), goal, [.. currentRoute, currentTile], memo);
+        FindShortestRoute(map, (currentTile.X, currentTile.Y + 1), goal, [.. currentRoute, currentTile], memo);
         FindShortestRoute(map, (currentTile.X - 1, currentTile.Y), goal, [.. currentRoute, currentTile], memo);
+        FindShortestRoute(map, (currentTile.X, currentTile.Y - 1), goal, [.. currentRoute, currentTile], memo);
     }
 
     (int X, int Y) GetTileCoordinates(char[,] map, char tile)
