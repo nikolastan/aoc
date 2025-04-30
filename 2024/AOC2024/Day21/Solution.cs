@@ -20,8 +20,10 @@ public class Solution
 
 	readonly (int Dx, int Dy)[] VectorOrder =
 	{
-		(0, -1), (1, 0), (-1, 0), (0, 1)
+		(0, -1), (1, 0), (-1, 0), (0, 1) //<, v, ^, >
 	};
+
+	List<string> PatternMap = ["<vA", "<A", "A", ">>^A", "vA", "^A", "v>A", "<^A", ">A", "^>A", "v<<A", ">^A"];
 
     [Test]
     public void Part1_Example()
@@ -61,9 +63,17 @@ public class Solution
         {
             Translate(code, 0, iterations, memo);
 
-			var translation = memo[(code, 0)];
-			
-            var numericPart = int.Parse(code[0..3]);
+			var translation = memo[(code, 0)]
+				.Select(x => memo[(x == 'A' ? "A" : $"{x}A", 1)])
+				.Aggregate((x, y) => x + y);
+
+			foreach(int i in Enumerable.Range(1, iterations))
+				translation = translation
+					.Select(x => PatternMap[x - '0'])
+					.Select(pattern => memo[(pattern, i + 1)])
+					.Aggregate((x, y) => x + y);
+
+			var numericPart = int.Parse(code[0..3]);
 
             result += numericPart * translation.Length;
         }
@@ -75,7 +85,6 @@ public class Solution
     {
 		if (totalTranslations == iteration)
 		{
-			memo[(code, iteration)] = code;
 			return;
 		}
 
@@ -98,7 +107,16 @@ public class Solution
 			if (!memo.ContainsKey((code, iteration)))
 				memo[(code, iteration)] = "";
 
-			memo[(code, iteration)] += memo[(translation, iteration + 1)];
+			if(iteration is 0)
+			{
+				memo[(code, iteration)] += translation;
+			}
+			else
+				memo[(code, iteration)] += translation.Split("A")
+					.Select(x => $"{x}A")
+					.Select(x => PatternMap.IndexOf(x))
+					.Aggregate((x, y) => x + y);
+
             currentTile = endTile;
         }
 
@@ -113,7 +131,7 @@ public class Solution
 		var directionVectors = memo[endTile][..^1]
 			.Zip(memo[endTile][1..])
 			.Select(x => (x.Second.X - x.First.X, x.Second.Y - x.First.Y))
-			.Cast<(int X, int Y)>()
+			.Cast<(int dX, int dY)>()
 			.ToList();
 
 		directionVectors = SortDirections(keyboard, startTile, directionVectors).ToList();
