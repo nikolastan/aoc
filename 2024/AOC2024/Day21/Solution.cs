@@ -23,7 +23,7 @@ public class Solution
 		(0, -1), (1, 0), (-1, 0), (0, 1) //<, v, ^, >
 	};
 
-	List<string> PatternMap = ["<vA", "<A", "A", ">>^A", "vA", "^A", "v>A", "<^A", ">A", "^>A", "v<<A", ">^A"];
+	readonly List<string> PatternMap = ["<vA", "<A", "A", ">>^A", "vA", "^A", "v>A", "<^A", ">A", "^>A", "v<<A", ">^A"];
 
     [Test]
     public void Part1_Example()
@@ -63,15 +63,18 @@ public class Solution
         {
             Translate(code, 0, iterations, memo);
 
-			var translation = memo[(code, 0)]
-				.Select(x => memo[(x == 'A' ? "A" : $"{x}A", 1)])
-				.Aggregate((x, y) => x + y);
+			var translation = memo[(code, 0)].Split("A")
+				.Where(x => x.Length > 0)
+				.Select(x => $"{x}A")
+				.Select(x => memo[(x, 1)])
+				.Aggregate((x, y) => x + ',' + y);
 
 			foreach(int i in Enumerable.Range(1, iterations))
 				translation = translation
-					.Select(x => PatternMap[x - '0'])
+					.Split(',')
+					.Select(x => PatternMap[int.Parse(x)])
 					.Select(pattern => memo[(pattern, i + 1)])
-					.Aggregate((x, y) => x + y);
+					.Aggregate((x, y) => x + ',' + y);
 
 			var numericPart = int.Parse(code[0..3]);
 
@@ -112,14 +115,21 @@ public class Solution
 				memo[(code, iteration)] += translation;
 			}
 			else
-				memo[(code, iteration)] += translation.Split("A")
+				memo[(code, iteration)] += 
+					translation == "A" 
+					? PatternMap.IndexOf("A")
+					: translation.Split("A")
 					.Select(x => $"{x}A")
-					.Select(x => PatternMap.IndexOf(x))
-					.Aggregate((x, y) => x + y);
+					.Select(x => PatternMap.IndexOf(x).ToString())
+					.Aggregate((x, y) => $"{x},{y}");
+
+			memo[(code, iteration)] += ',';
 
             currentTile = endTile;
         }
 
+        memo[(code, iteration)] = memo[(code, iteration)][..^1];
+        
 		return;
 	}
 
