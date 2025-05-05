@@ -61,16 +61,17 @@ public class Solution
         var patternMemo = new Dictionary<string, string>();
         foreach (var code in codes)
         {
-            GenerateFullPatternMap(code, 0, iterations, patternMemo);
+            GenerateFullPatternMap(code, 0, iterations + 5, patternMemo);
 
             var translation = patternMemo[code].Split(',')
                     .Where(x => x.Length > 0)
                     .Select(x => patternMemo[x])
                     .Aggregate((x, y) => $"{x},{y}");
 
+            var translationMemo = new Dictionary<(int, int), long>();
             var translationLength = translation
                     .Split(',')
-                    .Select(x => GetTranslationLength(int.Parse(x), 1, iterations, patternMemo, []))
+                    .Select(x => GetTranslationLength(int.Parse(x), 1, iterations - 1, patternMemo, translationMemo))
                     .Sum();
 
             var numericPart = int.Parse(code[0..3]);
@@ -93,8 +94,12 @@ public class Solution
 
         result = 0;
 
-        foreach (var ind in patternMemo[pattern].Split(','))
-            result += GetTranslationLength(int.Parse(ind), iteration + 1, totalIterations, patternMemo, translationMemo);
+        if (patternMemo.TryGetValue(pattern, out string? value))
+            foreach (var ind in value.Split(','))
+                result += GetTranslationLength(int.Parse(ind), iteration + 1, totalIterations, patternMemo,
+                    translationMemo);
+        else
+            throw new InvalidOperationException($"No {pattern} was found in pattern memo.");
 
         translationMemo[(patternIndex, iteration)] = result;
 
@@ -107,10 +112,7 @@ public class Solution
             return;
 
         if (totalTranslations == iteration)
-        {
-            memo[code] = BasicPatternMap.IndexOf(code).ToString();
             return;
-        }
 
         var (Map, Start) = iteration is 0
             ? NumericKeyboard
@@ -143,8 +145,6 @@ public class Solution
         }
 
         memo[code] = memo[code][..^1];
-
-        return;
     }
 
     string EncodeDirections(char[,] keyboard, (int X, int Y) startTile, (int X, int Y) endTile)
