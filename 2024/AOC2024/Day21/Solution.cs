@@ -18,12 +18,12 @@ public class Solution
         {'<', 'v', '>' }
     }, (0, 2));
 
-	readonly (int Dx, int Dy)[] VectorOrder =
-	{
-		(0, -1), (1, 0), (-1, 0), (0, 1) //<, v, ^, >
+    readonly (int Dx, int Dy)[] VectorOrder =
+    {
+        (0, -1), (1, 0), (-1, 0), (0, 1) //<, v, ^, >
 	};
 
-	List<string> PatternMap = ["<vA", "<A", "A", ">>^A", "vA", "^A", "v>A", "<^A", ">A", "^>A", "v<<A", ">^A"];
+    List<string> BasicPatternMap = ["<vA", "<A", "A", ">>^A", "vA", "^A", "v>A", "<^A", ">A", "^>A", "v<<A", ">^A", "v<A"];
 
     [Test]
     public void Part1_Example()
@@ -58,38 +58,59 @@ public class Solution
         var codes = File.ReadLines(inputPath);
         Int128 result = 0;
 
-		var memo = new Dictionary<(string, int), string>();
+        var patternMemo = new Dictionary<string, string>();
         foreach (var code in codes)
         {
-            Translate(code, 0, iterations, memo);
+            GenerateFullPatternMap(code, 0, iterations, patternMemo);
 
-			var translation = memo[(code, 0)]
-				.Select(x => memo[(x == 'A' ? "A" : $"{x}A", 1)])
-				.Aggregate((x, y) => x + y);
+            var translation = patternMemo[code].Split(',')
+                    .Where(x => x.Length > 0)
+                    .Select(x => patternMemo[x])
+                    .Aggregate((x, y) => $"{x},{y}");
 
-			foreach(int i in Enumerable.Range(1, iterations))
-				translation = translation
-					.Select(x => PatternMap[x - '0'])
-					.Select(pattern => memo[(pattern, i + 1)])
-					.Aggregate((x, y) => x + y);
+            var translationLength = translation
+                    .Split(',')
+                    .Select(x => GetTranslationLength(int.Parse(x), 1, iterations, patternMemo, []))
+                    .Sum();
 
-			var numericPart = int.Parse(code[0..3]);
+            var numericPart = int.Parse(code[0..3]);
 
-            result += numericPart * translation.Length;
+            result += numericPart * translationLength;
         }
 
         return result;
     }
 
-    void Translate(string code, int iteration, int totalTranslations, Dictionary<(string, int), string> memo)
+    long GetTranslationLength(int patternIndex, int iteration, int totalIterations, Dictionary<string, string> patternMemo, Dictionary<(int, int), long> translationMemo)
     {
-		if (totalTranslations == iteration)
-		{
-			return;
-		}
+        if (translationMemo.TryGetValue((patternIndex, iteration), out var result))
+            return result;
 
-		if (memo.ContainsKey((code, iteration)))
-			return;
+        var pattern = BasicPatternMap[patternIndex];
+
+        if (iteration == totalIterations)
+            return pattern.Length;
+
+        result = 0;
+
+        foreach (var ind in patternMemo[pattern].Split(','))
+            result += GetTranslationLength(int.Parse(ind), iteration + 1, totalIterations, patternMemo, translationMemo);
+
+        translationMemo[(patternIndex, iteration)] = result;
+
+        return result;
+    }
+
+    void GenerateFullPatternMap(string code, int iteration, int totalTranslations, Dictionary<string, string> memo)
+    {
+        if (memo.ContainsKey(code))
+            return;
+
+        if (totalTranslations == iteration)
+        {
+            memo[code] = BasicPatternMap.IndexOf(code).ToString();
+            return;
+        }
 
         var (Map, Start) = iteration is 0
             ? NumericKeyboard
@@ -102,164 +123,167 @@ public class Solution
             var endTile = GetTileCoordinates(Map, codeChar);
 
             var translation = EncodeDirections(Map, currentTile, endTile);
-			Translate(translation, iteration + 1, totalTranslations, memo);
+            GenerateFullPatternMap(translation, iteration + 1, totalTranslations, memo);
 
-			if (!memo.ContainsKey((code, iteration)))
-				memo[(code, iteration)] = "";
+            if (!memo.TryGetValue(code, out string? value))
+                memo[code] = "";
+            else if (value.Last() != ',')
+                return;
 
-			if(iteration is 0)
-			{
-				memo[(code, iteration)] += translation;
-			}
-			else
-				memo[(code, iteration)] += translation.Split("A")
-					.Select(x => $"{x}A")
-					.Select(x => PatternMap.IndexOf(x))
-					.Aggregate((x, y) => x + y);
+            if (iteration is 0)
+            {
+                memo[code] += translation;
+            }
+            else
+                memo[code] += BasicPatternMap.IndexOf(translation);
+
+            memo[code] += ',';
 
             currentTile = endTile;
         }
 
-		return;
-	}
+        memo[code] = memo[code][..^1];
 
-	string EncodeDirections(char[,] keyboard, (int X, int Y) startTile, (int X, int Y) endTile)
-	{
-		var memo = new Dictionary<(int X, int Y), List<(int X, int Y)>>();
-		FindShortestRoute(keyboard, startTile, endTile, [], memo);
+        return;
+    }
 
-		var directionVectors = memo[endTile][..^1]
-			.Zip(memo[endTile][1..])
-			.Select(x => (x.Second.X - x.First.X, x.Second.Y - x.First.Y))
-			.Cast<(int dX, int dY)>()
-			.ToList();
+    string EncodeDirections(char[,] keyboard, (int X, int Y) startTile, (int X, int Y) endTile)
+    {
+        var memo = new Dictionary<(int X, int Y), List<(int X, int Y)>>();
+        FindShortestRoute(keyboard, startTile, endTile, [], memo);
 
-		directionVectors = SortDirections(keyboard, startTile, directionVectors).ToList();
+        var directionVectors = memo[endTile][..^1]
+            .Zip(memo[endTile][1..])
+            .Select(x => (x.Second.X - x.First.X, x.Second.Y - x.First.Y))
+            .Cast<(int dX, int dY)>()
+            .ToList();
 
-		return new string(TranslateDirectionsToCode(directionVectors).ToArray());
-	}
+        directionVectors = SortDirections(keyboard, startTile, directionVectors).ToList();
 
-	void FindShortestRoute(
-		char[,] map,
-		(int X, int Y) currentTile,
-		(int X, int Y) goal,
-		List<(int X, int Y)> currentRoute,
-		Dictionary<(int X, int Y), List<(int X, int Y)>> memo)
-	{
-		if (currentRoute.Contains(currentTile)
-			|| !ArrayExtensions.IsValidTile(map, currentTile)
-			|| map[currentTile.X, currentTile.Y] == 'X')
-			return;
+        return new string(TranslateDirectionsToCode(directionVectors).ToArray());
+    }
 
-		if (!memo.TryGetValue(currentTile, out var currentMin) || currentMin.Count - 1 > currentRoute.Count)
-			memo[currentTile] = [.. currentRoute, currentTile];
-		else
-			return;
+    void FindShortestRoute(
+        char[,] map,
+        (int X, int Y) currentTile,
+        (int X, int Y) goal,
+        List<(int X, int Y)> currentRoute,
+        Dictionary<(int X, int Y), List<(int X, int Y)>> memo)
+    {
+        if (currentRoute.Contains(currentTile)
+            || !ArrayExtensions.IsValidTile(map, currentTile)
+            || map[currentTile.X, currentTile.Y] == 'X')
+            return;
 
-		if (currentTile == goal)
-			return;
+        if (!memo.TryGetValue(currentTile, out var currentMin) || currentMin.Count - 1 > currentRoute.Count)
+            memo[currentTile] = [.. currentRoute, currentTile];
+        else
+            return;
 
-		FindShortestRoute(map, (currentTile.X + 1, currentTile.Y), goal, [.. currentRoute, currentTile], memo);
-		FindShortestRoute(map, (currentTile.X, currentTile.Y + 1), goal, [.. currentRoute, currentTile], memo);
-		FindShortestRoute(map, (currentTile.X - 1, currentTile.Y), goal, [.. currentRoute, currentTile], memo);
-		FindShortestRoute(map, (currentTile.X, currentTile.Y - 1), goal, [.. currentRoute, currentTile], memo);
-	}
+        if (currentTile == goal)
+            return;
 
-	(int X, int Y) GetTileCoordinates(char[,] map, char tile)
-	{
-		for (int i = 0; i < map.GetLength(0); i++)
-		{
-			for (int j = 0; j < map.GetLength(1); j++)
-				if (map[i, j] == tile)
-					return (i, j);
-		}
+        FindShortestRoute(map, (currentTile.X + 1, currentTile.Y), goal, [.. currentRoute, currentTile], memo);
+        FindShortestRoute(map, (currentTile.X, currentTile.Y + 1), goal, [.. currentRoute, currentTile], memo);
+        FindShortestRoute(map, (currentTile.X - 1, currentTile.Y), goal, [.. currentRoute, currentTile], memo);
+        FindShortestRoute(map, (currentTile.X, currentTile.Y - 1), goal, [.. currentRoute, currentTile], memo);
+    }
 
-		throw new InvalidOperationException($"No {tile} tile has been found!");
-	}
+    (int X, int Y) GetTileCoordinates(char[,] map, char tile)
+    {
+        for (int i = 0; i < map.GetLength(0); i++)
+        {
+            for (int j = 0; j < map.GetLength(1); j++)
+                if (map[i, j] == tile)
+                    return (i, j);
+        }
 
-	IEnumerable<char> TranslateDirectionsToCode(List<(int dx, int dy)> dirVectors)
-	{
-		foreach (var dirVec in dirVectors)
-		{
-			yield return dirVec switch
-			{
-				(1, 0) => 'v',
-				(0, 1) => '>',
-				(-1, 0) => '^',
-				(0, -1) => '<',
-				_ => throw new InvalidOperationException($"Invalid vector {dirVec}.")
-			};
-		}
+        throw new InvalidOperationException($"No {tile} tile has been found!");
+    }
 
-		yield return 'A';
-	}
+    IEnumerable<char> TranslateDirectionsToCode(List<(int dx, int dy)> dirVectors)
+    {
+        foreach (var dirVec in dirVectors)
+        {
+            yield return dirVec switch
+            {
+                (1, 0) => 'v',
+                (0, 1) => '>',
+                (-1, 0) => '^',
+                (0, -1) => '<',
+                _ => throw new InvalidOperationException($"Invalid vector {dirVec}.")
+            };
+        }
 
-	IEnumerable<(int Dx, int Dy)> SortDirections(char[,] keyboard, (int X, int Y) startTile, List<(int Dx, int Dy)> directionVectors)
-	{
-		var currentTile = startTile;
-		var stash = new Stack<List<(int Dx, int Dy)>>();
+        yield return 'A';
+    }
 
-		// Sort direction vectors based on their position in VectorOrder array
-		directionVectors = [.. directionVectors.OrderBy(x => Array.IndexOf(VectorOrder, x))];
+    IEnumerable<(int Dx, int Dy)> SortDirections(char[,] keyboard, (int X, int Y) startTile, List<(int Dx, int Dy)> directionVectors)
+    {
+        var currentTile = startTile;
+        var stash = new Stack<List<(int Dx, int Dy)>>();
 
-		int i = 0;
-		while (i < directionVectors.Count)
-		{
-			var currentVector = directionVectors[i];
-			var vectorGroup = new List<(int Dx, int Dy)> { currentVector };
+        // Sort direction vectors based on their position in VectorOrder array
+        directionVectors = [.. directionVectors.OrderBy(x => Array.IndexOf(VectorOrder, x))];
 
-			// Find all consecutive identical vectors
-			int j = i + 1;
-			while (j < directionVectors.Count &&
-				   directionVectors[j].Dx == currentVector.Dx &&
-				   directionVectors[j].Dy == currentVector.Dy)
-			{
-				vectorGroup.Add(directionVectors[j]);
-				j++;
-			}
+        int i = 0;
+        while (i < directionVectors.Count)
+        {
+            var currentVector = directionVectors[i];
+            var vectorGroup = new List<(int Dx, int Dy)> { currentVector };
 
-			// Check if any vector in the group leads to an 'X' tile
-			bool groupHasXTile = false;
-			var tempTile = currentTile;
-			foreach (var vec in vectorGroup)
-			{
-				if (keyboard[tempTile.X + vec.Dx, tempTile.Y + vec.Dy] is 'X')
-				{
-					groupHasXTile = true;
-					break;
-				}
-				tempTile = (tempTile.X + vec.Dx, tempTile.Y + vec.Dy);
-			}
+            // Find all consecutive identical vectors
+            int j = i + 1;
+            while (j < directionVectors.Count &&
+                   directionVectors[j].Dx == currentVector.Dx &&
+                   directionVectors[j].Dy == currentVector.Dy)
+            {
+                vectorGroup.Add(directionVectors[j]);
+                j++;
+            }
 
-			if (groupHasXTile)
-			{
-				// If any vector in the group leads to an 'X' tile, push the entire group onto the stack
-				stash.Push(vectorGroup);
-			}
-			else
-			{
-				// Otherwise, yield all vectors in the group and update the current position
-				foreach (var vec in vectorGroup)
-				{
-					yield return vec;
-					currentTile = (currentTile.X + vec.Dx, currentTile.Y + vec.Dy);
-				}
-			}
+            // Check if any vector in the group leads to an 'X' tile
+            bool groupHasXTile = false;
+            var tempTile = currentTile;
+            foreach (var vec in vectorGroup)
+            {
+                if (keyboard[tempTile.X + vec.Dx, tempTile.Y + vec.Dy] is 'X')
+                {
+                    groupHasXTile = true;
+                    break;
+                }
+                tempTile = (tempTile.X + vec.Dx, tempTile.Y + vec.Dy);
+            }
 
-			// Move to the next group of vectors
-			i = j;
-		}
+            if (groupHasXTile)
+            {
+                // If any vector in the group leads to an 'X' tile, push the entire group onto the stack
+                stash.Push(vectorGroup);
+            }
+            else
+            {
+                // Otherwise, yield all vectors in the group and update the current position
+                foreach (var vec in vectorGroup)
+                {
+                    yield return vec;
+                    currentTile = (currentTile.X + vec.Dx, currentTile.Y + vec.Dy);
+                }
+            }
 
-		// After processing all direction vectors, yield those that lead to 'X' tiles in reverse order
-		while (stash.Count > 0)
-		{
-			var group = stash.Pop();
-			foreach (var vec in group)
-			{
-				yield return vec;
-				// Note: We don't update currentTile here because these vectors lead to 'X' tiles
-				// and we're just yielding them at the end
-			}
-		}
-	}
+            // Move to the next group of vectors
+            i = j;
+        }
+
+        // After processing all direction vectors, yield those that lead to 'X' tiles in reverse order
+        while (stash.Count > 0)
+        {
+            var group = stash.Pop();
+            foreach (var vec in group)
+            {
+                yield return vec;
+                // Note: We don't update currentTile here because these vectors lead to 'X' tiles
+                // and we're just yielding them at the end
+            }
+        }
+    }
 }
