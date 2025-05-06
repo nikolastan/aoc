@@ -42,14 +42,14 @@ public class Solution
     [Test]
     public void Part2_Example()
     {
-        var result = Solve("Inputs/example.txt", 25);
+        var result = Solve("Inputs/example.txt", 26);
         Assert.That(result, Is.EqualTo(0));
     }
 
     [Test]
     public void Part2_Input()
     {
-        var result = Solve("Inputs/input.txt", 25);
+        var result = Solve("Inputs/input.txt", 26);
         Console.WriteLine(result);
     }
 
@@ -61,7 +61,7 @@ public class Solution
         var patternMemo = new Dictionary<string, string>();
         foreach (var code in codes)
         {
-            GenerateFullPatternMap(code, 0, iterations + 5, patternMemo);
+            GenerateFullPatternMap(code, patternMemo);
 
             var translation = patternMemo[code].Split(',')
                     .Where(x => x.Length > 0)
@@ -96,8 +96,7 @@ public class Solution
 
         if (patternMemo.TryGetValue(pattern, out string? value))
             foreach (var ind in value.Split(','))
-                result += GetTranslationLength(int.Parse(ind), iteration + 1, totalIterations, patternMemo,
-                    translationMemo);
+                result += GetTranslationLength(int.Parse(ind), iteration + 1, totalIterations, patternMemo, translationMemo);
         else
             throw new InvalidOperationException($"No {pattern} was found in pattern memo.");
 
@@ -119,6 +118,7 @@ public class Solution
             : DirectionalKeyboard;
 
         var currentTile = Start;
+        var result = "";
 
         foreach (var codeChar in code)
         {
@@ -127,24 +127,64 @@ public class Solution
             var translation = EncodeDirections(Map, currentTile, endTile);
             GenerateFullPatternMap(translation, iteration + 1, totalTranslations, memo);
 
-            if (!memo.TryGetValue(code, out string? value))
-                memo[code] = "";
-            else if (value.Last() != ',')
-                return;
-
             if (iteration is 0)
             {
-                memo[code] += translation;
+                result += translation;
             }
             else
-                memo[code] += BasicPatternMap.IndexOf(translation);
+                result += BasicPatternMap.IndexOf(translation);
 
-            memo[code] += ',';
+            result += ',';
 
             currentTile = endTile;
         }
 
-        memo[code] = memo[code][..^1];
+        memo[code] = result[..^1];
+    }
+
+    void GenerateFullPatternMap(string code, Dictionary<string, string> memo)
+    {
+        var currentTile = NumericKeyboard.Start;
+        var result = "";
+        foreach (var codeChar in code)
+        {
+            var endTile = GetTileCoordinates(NumericKeyboard.Map, codeChar);
+
+            var translation = EncodeDirections(NumericKeyboard.Map, currentTile, endTile);
+
+            result += translation;
+            result += ',';
+
+            currentTile = endTile;
+        }
+
+        List<string> numericPatterns = result.Split(',').Where(x => x.Length > 0).ToList();
+
+        memo[code] = result[..^1];
+
+        currentTile = DirectionalKeyboard.Start;
+
+        foreach (var pattern in (List<string>)[.. BasicPatternMap, .. numericPatterns])
+        {
+            if (memo.ContainsKey(pattern))
+                continue;
+
+            result = "";
+
+            foreach (var codeChar in pattern)
+            {
+                var endTile = GetTileCoordinates(DirectionalKeyboard.Map, codeChar);
+
+                var translation = EncodeDirections(DirectionalKeyboard.Map, currentTile, endTile);
+
+                result += BasicPatternMap.IndexOf(translation);
+                result += ',';
+
+                currentTile = endTile;
+            }
+
+            memo[pattern] = result[..^1];
+        }
     }
 
     string EncodeDirections(char[,] keyboard, (int X, int Y) startTile, (int X, int Y) endTile)
