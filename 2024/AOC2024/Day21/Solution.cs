@@ -105,43 +105,6 @@ public class Solution
         return result;
     }
 
-    void GenerateFullPatternMap(string code, int iteration, int totalTranslations, Dictionary<string, string> memo)
-    {
-        if (memo.ContainsKey(code))
-            return;
-
-        if (totalTranslations == iteration)
-            return;
-
-        var (Map, Start) = iteration is 0
-            ? NumericKeyboard
-            : DirectionalKeyboard;
-
-        var currentTile = Start;
-        var result = "";
-
-        foreach (var codeChar in code)
-        {
-            var endTile = GetTileCoordinates(Map, codeChar);
-
-            var translation = EncodeDirections(Map, currentTile, endTile);
-            GenerateFullPatternMap(translation, iteration + 1, totalTranslations, memo);
-
-            if (iteration is 0)
-            {
-                result += translation;
-            }
-            else
-                result += BasicPatternMap.IndexOf(translation);
-
-            result += ',';
-
-            currentTile = endTile;
-        }
-
-        memo[code] = result[..^1];
-    }
-
     void GenerateFullPatternMap(string code, Dictionary<string, string> memo)
     {
         var currentTile = NumericKeyboard.Start;
