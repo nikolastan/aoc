@@ -21,7 +21,7 @@ public class Solution
     public void Part2_Example()
     {
         var result = SolvePart2("Inputs/example.txt");
-        Assert.That(result, Is.EqualTo(0));
+        Assert.That(result, Is.EqualTo("co,de,ka,ta"));
     }
 
     [Test]
@@ -37,6 +37,34 @@ public class Solution
             .Select(x => x.Split('-'))
             .Select(x => (x[0], x[1]));
 
+        var computerNetworks = GenerateGraphDictionary(connections);
+
+        var result = new HashSet<string>();
+
+        foreach (var network in computerNetworks)
+            FindAll3NodeLans(network.Key, [], computerNetworks, ref result);
+
+        return result.Count;
+    }
+
+    string SolvePart2(string inputPath)
+    {
+        var connections = File.ReadAllLines(inputPath)
+            .Select(x => x.Split('-'))
+            .Select(x => (x[0], x[1]));
+
+        var computerNetworks = GenerateGraphDictionary(connections);
+
+        var result = new List<string>();
+
+        foreach (var network in computerNetworks)
+            FindBiggestLan(network.Key, [], computerNetworks, [], ref result);
+
+        return result.OrderBy(s => s, StringComparer.OrdinalIgnoreCase).Aggregate((x, y) => $"{x},{y}");
+    }
+
+    Dictionary<string, HashSet<string>> GenerateGraphDictionary(IEnumerable<(string, string)> connections)
+    {
         var computerNetworks = new Dictionary<string, HashSet<string>>();
 
         foreach (var connection in connections)
@@ -46,22 +74,16 @@ public class Solution
             else
                 computerNetworks.Add(connection.Item1, [connection.Item2]);
 
-
             if (computerNetworks.TryGetValue(connection.Item2, out HashSet<string>? value2))
                 value2.Add(connection.Item1);
             else
                 computerNetworks.Add(connection.Item2, [connection.Item1]);
         }
 
-        var result = new HashSet<string>();
-
-        foreach (var network in computerNetworks)
-            Traverse(network.Key, [], computerNetworks, ref result);
-
-        return result.Count;
+        return computerNetworks;
     }
 
-    void Traverse(string currentNetworkKey, List<string> currentPath, Dictionary<string, HashSet<string>> allNetworks, ref HashSet<string> traversedPaths)
+    void FindAll3NodeLans(string currentNetworkKey, List<string> currentPath, Dictionary<string, HashSet<string>> allNetworks, ref HashSet<string> traversedPaths)
     {
         if (currentPath.Count is 3)
         {
@@ -71,11 +93,46 @@ public class Solution
         }
 
         foreach (var network in allNetworks[currentNetworkKey])
-            Traverse(network, [.. currentPath, currentNetworkKey], allNetworks, ref traversedPaths);
+            FindAll3NodeLans(network, [.. currentPath, currentNetworkKey], allNetworks, ref traversedPaths);
     }
 
-    int SolvePart2(string inputPath)
+    void FindBiggestLan(string currentNetworkKey, List<string> currentPath, Dictionary<string, HashSet<string>> allNetworks, HashSet<int> traversedPathHashes, ref List<string> biggestLan)
     {
-        return 0;
+        if (currentPath.Contains(currentNetworkKey) || currentPath.Any(x => !allNetworks[x].Contains(currentNetworkKey)))
+            return;
+
+        currentPath = [.. currentPath, currentNetworkKey];
+
+        var hash = GetOrderIndependentHashCode(currentPath);
+
+        if (!traversedPathHashes.Add(hash))
+            return;
+
+        if (currentPath.Count > biggestLan.Count)
+        {
+            biggestLan = currentPath;
+        }
+
+        foreach (var network in allNetworks[currentNetworkKey])
+            FindBiggestLan(network, currentPath, allNetworks, traversedPathHashes, ref biggestLan);
+    }
+
+    public static int GetOrderIndependentHashCode(IEnumerable<string> strings)
+    {
+        if (strings == null)
+            return 0;
+
+        // Sort the strings to normalize order
+        var sortedStrings = strings.OrderBy(s => s, StringComparer.Ordinal).ToList();
+
+        // XOR the hash codes of individual strings
+        // This is simple but has limitations with collisions
+        int hash = 0;
+        foreach (var str in sortedStrings)
+        {
+            hash ^= str.GetHashCode();
+        }
+
+        return hash;
     }
 }
