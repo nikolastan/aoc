@@ -122,13 +122,8 @@ public class Solution
         if (strings == null)
             return 0;
 
-        // Sort the strings to normalize order
-        var sortedStrings = strings.OrderBy(s => s, StringComparer.Ordinal).ToList();
-
-        // XOR the hash codes of individual strings
-        // This is simple but has limitations with collisions
         int hash = 0;
-        foreach (var str in sortedStrings)
+        foreach (var str in strings)
         {
             hash ^= str.GetHashCode();
         }
