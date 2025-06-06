@@ -35,6 +35,38 @@ public class Solution
     {
         ReadInput(inputPath, out var startValues, out var operations);
 
+        return PerformOperations(startValues, operations);
+    }
+
+    int SolvePart2(string inputPath)
+    {
+        // Reduce problem space by setting x and y bits to random(?) numbers and testing the actual sum of those against resulting z bits (finding differentiating bits)
+        // Try swapping around outputs of gates that are used for generating problematic z bits (and testing the results)
+
+        ReadInput(inputPath, out var startValues, out var operations);
+
+        var xNum = ConvertBitsToBinary(startValues.Where(x => x.Key.StartsWith('x')));
+        var yNum = ConvertBitsToBinary(startValues.Where(x => x.Key.StartsWith('y')));
+
+        var zNum = Convert.ToInt64(xNum, 2) + Convert.ToInt64(yNum, 2);
+
+        var actualZNum = PerformOperations(startValues, operations);
+
+        var bitDiff = Convert.ToString(zNum ^ actualZNum, 2);
+
+        return 0;
+    }
+
+    static string ConvertBitsToBinary(IEnumerable<KeyValuePair<string, int?>> bits)
+    {
+        return bits
+            .OrderByDescending(x => x.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(x => x.Value.ToString())
+            .Aggregate((x, y) => x + y)!;
+    }
+
+    long PerformOperations(Dictionary<string, int?> startValues, List<Operation> operations)
+    {
         var laterLookup = new List<Operation>();
         while (operations.Count > 0 || laterLookup.Count > 0)
         {
@@ -65,18 +97,7 @@ public class Solution
                 startValues[operation.Result] = value;
         }
 
-        return Convert.ToInt64(startValues
-            .Where(x => x.Key.StartsWith('z'))
-            .OrderByDescending(x => x.Key, StringComparer.OrdinalIgnoreCase)
-            .Select(x => x.Value.ToString())
-            .Aggregate((x, y) => x + y), 2);
-    }
-
-    int SolvePart2(string inputPath)
-    {
-        // Reduce problem space by setting x and y bits to random(?) numbers and testing the actual sum of those against resulting z bits (finding differentiating bits)
-        // Try swapping around outputs of gates that are used for generating problematic z bits (and testing the results)
-        return 0;
+        return Convert.ToInt64(ConvertBitsToBinary(startValues.Where(x => x.Key.StartsWith('z'))), 2);
     }
 
     void ReadInput(string inputPath, out Dictionary<string, int?> startValues, out List<Operation> operations)
