@@ -45,6 +45,8 @@ public class Solution
 
         ReadInput(inputPath, out var startValues, out var operations);
 
+        startValues = SetBits(startValues, [('x', 1, 1)]);
+
         var xNum = ConvertBitsToBinary(startValues.Where(x => x.Key.StartsWith('x')));
         var yNum = ConvertBitsToBinary(startValues.Where(x => x.Key.StartsWith('y')));
 
@@ -126,6 +128,23 @@ public class Solution
             operations.Add(
                 new Operation(rawValues[0], rawValues[2], (OperationType)Enum.Parse(typeof(OperationType), rawValues[1]), rawValues[3]));
         }
+    }
+
+    private Dictionary<string, int?> SetBits(IDictionary<string, int?> startBitValues, IList<(char Reg, int BitNum, int Value)> bits)
+    {
+        var result = new Dictionary<string, int?>();
+
+        foreach (var startingValue in startBitValues)
+        {
+            var (Reg, BitNum, NewBitValue) = bits.FirstOrDefault(setBit => startingValue.Key.StartsWith(setBit.Reg) && int.Parse(startingValue.Key[^2..]) == setBit.BitNum);
+
+            if (Reg != default)
+                result.Add(startingValue.Key, NewBitValue);
+            else
+                result.Add(startingValue.Key, 0);
+        }
+
+        return result;
     }
 
     struct Operation(string value1, string value2, OperationType type, string result)
