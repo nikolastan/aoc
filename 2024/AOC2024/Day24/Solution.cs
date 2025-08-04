@@ -40,22 +40,41 @@ public class Solution
 
     int SolvePart2(string inputPath)
     {
-        // Reduce problem space by setting x and y bits to random(?) numbers and testing the actual sum of those against resulting z bits (finding differentiating bits)
+        // Reduce problem space by setting each of x bits to 1 and testing the actual sum of x and y (all y bits are 0 always) against resulting z bits (finding differentiating bits)
         // Try swapping around outputs of gates that are used for generating problematic z bits (and testing the results)
 
         ReadInput(inputPath, out var startValues, out var operations);
 
-        startValues = SetBits(startValues, [('x', 1, 1)]);
+        for (var i = 0; i < startValues.Count(x => x.Key.StartsWith('x')); i++)
+        {
+            startValues = SetBits(startValues, [('x', i, 1)]);
 
-        var xNum = ConvertBitsToBinary(startValues.Where(x => x.Key.StartsWith('x')));
-        var yNum = ConvertBitsToBinary(startValues.Where(x => x.Key.StartsWith('y')));
+            var xNum = ConvertBitsToBinary(startValues.Where(x => x.Key.StartsWith('x')));
+            var yNum = ConvertBitsToBinary(startValues.Where(x => x.Key.StartsWith('y')));
 
-        var zNum = Convert.ToInt64(xNum, 2) + Convert.ToInt64(yNum, 2);
+            var zNum = Convert.ToInt64(xNum, 2) + Convert.ToInt64(yNum, 2);
 
-        var actualZNum = PerformOperations(startValues, operations);
+            var actualZNum = PerformOperations(startValues, [..operations]);
 
-        var bitDiff = Convert.ToString(zNum ^ actualZNum, 2);
+            var bitDiff = Convert.ToString(zNum ^ actualZNum, 2);
 
+            if (bitDiff != "0")
+            {
+                var indexes = bitDiff
+                    .Select((x, index) => new { Value = x, Index = index })
+                    .Where(x => x.Value is '1')
+                    .Select(x => bitDiff.Length - x.Index - 1)
+                    .Select(x => x.ToString("D2"))
+                    .ToList();
+                
+                //Determine bits in use for each z bit affected
+                var bitsInUse1 = DetermineBitsInUse($"z{indexes[0]}", operations).ToList();
+                var bitsInUse2 = DetermineBitsInUse($"z{indexes[1]}", operations).ToList();
+            }
+            
+            startValues = startValues.Where(x => x.Key.StartsWith('x') || x.Key.StartsWith('y')).ToDictionary();
+        }
+        
         return 0;
     }
 
@@ -102,7 +121,7 @@ public class Solution
         return Convert.ToInt64(ConvertBitsToBinary(startValues.Where(x => x.Key.StartsWith('z'))), 2);
     }
 
-    void ReadInput(string inputPath, out Dictionary<string, int?> startValues, out List<Operation> operations)
+    private static void ReadInput(string inputPath, out Dictionary<string, int?> startValues, out List<Operation> operations)
     {
         using var reader = new StreamReader(inputPath);
 
@@ -138,13 +157,29 @@ public class Solution
         {
             var (Reg, BitNum, NewBitValue) = bits.FirstOrDefault(setBit => startingValue.Key.StartsWith(setBit.Reg) && int.Parse(startingValue.Key[^2..]) == setBit.BitNum);
 
-            if (Reg != default)
-                result.Add(startingValue.Key, NewBitValue);
-            else
-                result.Add(startingValue.Key, 0);
+            result.Add(startingValue.Key, Reg != 0 ? NewBitValue : 0);
         }
 
         return result;
+    }
+
+    private IEnumerable<string> DetermineBitsInUse(string resultingZBit, List<Operation> operations)
+    {
+        var stack = new Stack<string>();
+        stack.Push(resultingZBit);
+
+        while (stack.Count > 0)
+        {
+            var currentBit = stack.Pop();
+            yield return currentBit;
+            
+            var operationForBit = operations.FirstOrDefault(x => x.Result  == currentBit);
+
+            if (operationForBit.Result is null) continue;
+            
+            stack.Push(operationForBit.Value1);
+            stack.Push(operationForBit.Value2);
+        }
     }
 
     struct Operation(string value1, string value2, OperationType type, string result)
